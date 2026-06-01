@@ -70,6 +70,52 @@ function seasonDates(){
 function contractDays(startISO,endISO){ return dayDiff(startISO,endISO)+1; }
 
 
+function blankSchedule(staff, dates){
+  const sched={};
+  for(const d of dates){
+    let state='CLEAR';
+    const inContract = dayDiff(staff.start,d)>=0 && dayDiff(d,staff.end)>=0;
+    if(inContract) state='ON';
+    sched[d]={am:state, pm:state};
+  }
+  return sched;
+}
+
+/* Apply one day-off SET. fullOffDays = number of full OFF calendar days.
+   Returns {ok, creditedDaysOff} or {ok:false} if it would violate a hard rule
+   given the precomputed slot occupancy (checked by caller).            */
+function applyOffSet(sched, departISO, fullOffDays){
+  // departISO = first day where PM goes OFF (AM stays ON: half working day).
+  // full off days follow; then return day AM OFF / PM ON.
+  const returnISO = addDays(departISO, fullOffDays+1);
+  if(!sched[departISO] || !sched[returnISO]) return false; // out of range
+  sched[departISO].pm='OFF';
+  for(let i=1;i<=fullOffDays;i++){
+    const d=addDays(departISO,i);
+    if(!sched[d]) return false;
+    sched[d].am='OFF'; sched[d].pm='OFF';
+  }
+  sched[returnISO].am='OFF';
+  return true;
+}
+
+// Count credited days off (each OFF half-slot = 0.5) within contract.
+function countDaysOff(sched){
+  let off=0;
+  for(const d in sched){
+    if(sched[d].am==='OFF') off+=0.5;
+    if(sched[d].pm==='OFF') off+=0.5;
+  }
+  return off;
+}
+function countWorkingDays(sched){
+  let on=0;
+  for(const d in sched){
+    if(sched[d].am==='ON') on+=0.5;
+    if(sched[d].pm==='ON') on+=0.5;
+  }
+  return on;
+}
 
 /* ---------------------------------------------------------------------------
    GLOBAL OCCUPANCY: for each date+slot, how many staff are ON / total active.
