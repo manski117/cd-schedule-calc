@@ -522,6 +522,42 @@ renderStaff();
 document.getElementById('addStaff').onclick=()=>{makeStaffRow();renderStaff();};
 document.querySelectorAll('input[name=hasacd]').forEach(r=>r.onchange=renderStaff);
 
+/* build engine input from UI */
+function buildInput(){
+  return {
+    hasACD:hasACD(), minPct:+document.getElementById('minPct').value,
+    prioritize21:document.getElementById('prioritize21').checked,
+    staff:staffRows.map((d,i)=>({
+      id:d.id,name:d.name.trim()||('Staff '+(i+1)),role:roleFor(i),is21:d.is21,
+      start:d.start,end:d.end,
+      required:d.required.filter(Boolean),preferred:d.preferred.filter(Boolean),
+      locked:d.locked,
+      lockedSchedule: (d.locked && lastResult)? lastResult.schedules[d.id] : null
+    }))
+  };
+}
+
+function run(isRecalc){
+  const note=document.getElementById('calcNote');
+  const btn=isRecalc?document.getElementById('recalcBtn'):document.getElementById('calcBtn');
+  const orig=btn.innerHTML; btn.innerHTML='<span class="spinner"></span>Solving';
+  setTimeout(()=>{
+    try{
+      const input=buildInput();
+      // carry locked schedules; engine seeds them as fixed
+      const res=solveBest(input, 36);
+      lastResult=res; lastResult._input=input;
+      renderOutput(res,input);
+      document.getElementById('output').classList.remove('hidden');
+      document.getElementById('recalcBtn').classList.remove('hidden');
+      note.textContent='Tip: lock the schedules you like, then Recalculate to reshuffle the rest.';
+      document.getElementById('output').scrollIntoView({behavior:'smooth',block:'start'});
+    }catch(err){ note.textContent='Error: '+err.message; console.error(err); }
+    btn.innerHTML=orig;
+  },30);
+}
+document.getElementById('calcBtn').onclick=()=>run(false);
+document.getElementById('recalcBtn').onclick=()=>run(true);
 
 /* ---- output rendering ---- */
 function renderOutput(res,input){
