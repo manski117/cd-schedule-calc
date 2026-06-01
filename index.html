@@ -4,6 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Camp Day-Off Scheduler</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -86,7 +87,29 @@
 </div>
 
 <script>
+// === ENGINE (embedded) ===
+/* ============================================================================
+   CAMP DAY-OFF SCHEDULING ENGINE
+   Pure JavaScript. No dependencies. No network. No LLM.
+   ----------------------------------------------------------------------------
+   MODEL
+   - Season is fixed: June 6 .. Aug 20 (inclusive) per spec timeframe.
+     (Form start dates can be earlier, e.g. May 27, but only Jun6..Aug20 is
+     scheduled/output as the relevant operating window. Days outside a staffer's
+     contract are "Clear"; pre-season camp-setup days are "Other".)
+   - Each day = 2 slots: AM and PM. This is the key trick that makes the
+     "hike in by noon / relief leaves at noon" overlap work and lets the
+     in-camp floor be checked per half-day.
+   - A DAY-OFF SET is a contiguous block of full days plus the hike half-days:
+       * Departure day: AM = ON (covering), PM = OFF (relief arrived, hiked out)
+       * Full off days: AM = OFF, PM = OFF
+       * Return day:    AM = OFF (still hiking in), PM = ON (back at post)
+     So a "3 day" off set actually spans 4 calendar days with 2 half-days at the
+     ends. Days-off credited = fullDays + 1.0  (0.5 departure PM + 0.5 return AM).
+     This reproduces the 18.5 half-day accounting from the example sheet.
 
+   STATE per staffer per slot: 'ON' | 'OFF' | 'OTHER' | 'CLEAR'
+   ============================================================================ */
 
 const SEASON_START = '2021-06-06'; // anchor; year is cosmetic, weekday math uses it
 const SEASON_END   = '2021-08-20';
@@ -209,7 +232,17 @@ function commitOffSetToOcc(occ, departISO, fullOffDays){
   occ[addDays(departISO,fullOffDays+1)].amOn--;
 }
 
-
+/* ===========================================================================
+   MAIN SOLVER
+   inputs: {
+     staff: [{id,name,role,is21,start,end,required:[iso],preferred:[iso],locked,
+              lockedSchedule?}],
+     hasACD: bool,            // staff[1] is ACD if true
+     minPct: 50|60|70|75,
+     prioritize21: bool
+   }
+   Returns { schedules, dates, occupancy, report }
+=========================================================================== */
 function solve(input, seed){
   const rng = mulberry32(seed>>>0);
   const dates = seasonDates();
