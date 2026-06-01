@@ -120,6 +120,169 @@ function commitOffSetToOcc(occ, departISO, fullOffDays){
 }
 
 
+function solve(input, seed){
+  const rng = mulberry32(seed>>>0);
+  const dates = seasonDates();
+  const N = input.staff.length;
+  const floorCount = Math.ceil((input.minPct/100)*N);
+
+  const schedules={};
+  // 1) seed locked staff with their fixed schedule; others blank (all ON).
+  for(const st of input.staff){
+    if(st.locked && st.lockedSchedule){ schedules[st.id]=deepClone(st.lockedSchedule); }
+    else schedules[st.id]=blankSchedule(st, dates);
+  }
+
+  // Enforce: last 3 calendar days of each contract (within season) are WORKING.
+  const protectedOn={};
+  for(const st of input.staff){
+    protectedOn[st.id]=new Set();
+    const lastDay = minISO(st.end, SEASON_END);     // last scheduled working day
+    if(dayDiff(SEASON_START,lastDay)>=0){
+      for(let i=0;i<3;i++){
+        const d=addDays(lastDay,-i);
+        if(dayDiff(SEASON_START,d)>=0) protectedOn[st.id].add(d);
+      }
+    }
+  }
+
+  let occ=buildOccupancy(schedules,dates);
+
+  const toSchedule = input.staff.filter(s=>!s.locked);
+  const report={warnings:[],perStaff:{}};
+
+  // Compute each staffer's day-off TARGET (~25%) and HARD MAX (>=74% working).
+  for(const st of input.staff){
+    const cdc=contractDays(maxISO(st.start,SEASON_START), minISO(st.end,SEASON_END));
+    st._cd=cdc;
+    st._targetOff = cdc*0.25;
+    st._maxOff = Math.max(0, cdc - Math.ceil(cdc*0.74));
+    st._minOff = Math.ceil(cdc*0.25 - 1e-9);
+  }
+
+  // Place REQUIRED days off first (priority 2) for each unlocked staffer.
+  for(const st of toSchedule){
+    report.perStaff[st.id]={requiredMet:0,requiredTotal:st.required.length,preferredMet:0,preferredTotal:st.preferred.length};
+    for(const reqISO of st.required){
+      if(dayDiff(SEASON_START,reqISO)<0||dayDiff(reqISO,SEASON_END)<0) continue;
+      const depart=addDays(reqISO,-1);
+      const placed = tryPlace(schedules[st.id],occ,st,depart,1,floorCount,protectedOn[st.id]);
+      if(placed) report.perStaff[st.id].requiredMet++;
+      else if(schedules[st.id][reqISO] && !protectedOn[st.id].has(reqISO) && occ[reqISO].pmOn-1>=floorCount){
+        schedules[st.id][reqISO].pm='OFF'; occ[reqISO].pmOn--; report.perStaff[st.id].requiredMet++;
+      } else {
+        report.warnings.push(`Could not honor required day off ${reqISO} for ${st.name} (would breach in-camp floor).`);
+      }
+    }
+  }
+
+  // CD/ACD exclusion windows: track when CD is off so ACD never overlaps.
+  const cd = input.staff[0];
+  const acd = input.hasACD? input.staff[1] : null;
+
+
+
+  const cdSched = schedules[cd.id];
+  let progress=true, guard=0;
+  // Phase A: bring everyone toward 25% target (fairness-ordered).
+  // Phase B: if floor still allows, keep filling up to the 26% cap.
+  for(const phase of ['target','cap']){
+    progress=true; guard=0;
+    while(progress && guard++ < 4000){
+      progress=false;
+      const limitFn = phase==='target'
+        ? (st)=> st._targetOff - 0.5
+        : (st)=> st._maxOff;
+      const ranked=[...toSchedule].map(st=>({st,
+          ratio: countDaysOff(schedules[st.id]) / Math.max(0.0001,st._targetOff),
+          r: rng()
+        })).filter(x=>countDaysOff(schedules[x.st.id]) < limitFn(x.st))
+          .sort((a,b)=> (a.ratio-b.ratio)||(a.r-b.r));
+      for(const {st} of ranked){
+        const isACD = acd && st.id===acd.id;
+        const placed = placeNextSet(schedules[st.id],occ,st,floorCount,protectedOn[st.id],{
+          isACD, cdSched: isACD?cdSched:null, acdSched: (acd && st.id===cd.id)?schedules[acd.id]:null,
+          dates, rng, minStreak: phase==='target'?7:5
+        });
+        if(placed) progress=true;
+      }
+    }
+  }
+
+  // 4) PREFERRED days off (priority 4) — try to nudge if slack remains.
+  for(const st of toSchedule){
+    for(const prefISO of st.preferred){
+      if(dayDiff(SEASON_START,prefISO)<0||dayDiff(prefISO,SEASON_END)<0) continue;
+      if(countDaysOff(schedules[st.id]) >= st._maxOff) break;
+      if(schedules[st.id][prefISO] && schedules[st.id][prefISO].pm==='ON'
+         && !protectedOn[st.id].has(prefISO) && occ[prefISO].pmOn-1>=floorCount){
+        schedules[st.id][prefISO].pm='OFF'; occ[prefISO].pmOn--;
+        report.perStaff[st.id].preferredMet++;
+      }
+    }
+  }
+
+  // 5) Mark pre-contract season days as OTHER (camp setup) and post as CLEAR.
+  for(const st of input.staff){
+    for(const d of dates){
+      const inContract = dayDiff(st.start,d)>=0 && dayDiff(d,st.end)>=0;
+      if(!inContract){ schedules[st.id][d]={am:'CLEAR',pm:'CLEAR'}; }
+    }
+  }
+
+  occ=buildOccupancy(schedules,dates);
+  // Final validation pass
+  validate(input,schedules,dates,occ,floorCount,report,protectedOn);
+
+  return {schedules,dates,occupancy:occ,floorCount,report};
+}
+
+
+
+
+function orderForFairness(list,rng,prioritize21){
+  const arr=[...list];
+  // shuffle then stable-sort by tightness so restarts explore alternatives
+  for(let i=arr.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}
+  return arr;
+}
+
+function validate(input,schedules,dates,occ,floorCount,report,protectedOn){
+  // floor check per slot
+  for(const d of dates){
+    const o=occ[d];
+    if(o.amActive>0 && o.amOn<floorCount) report.warnings.push(`Below floor (${o.amOn}/${floorCount}) AM ${d}.`);
+    if(o.pmActive>0 && o.pmOn<floorCount) report.warnings.push(`Below floor (${o.pmOn}/${floorCount}) PM ${d}.`);
+  }
+  // ACD/CD overlap
+  if(input.hasACD){
+    const cd=schedules[input.staff[0].id], acd=schedules[input.staff[1].id];
+    for(const d of dates){
+      if(cd[d]&&acd[d]){
+        if((cd[d].am==='OFF'&&acd[d].am==='OFF')||(cd[d].pm==='OFF'&&acd[d].pm==='OFF'))
+          report.warnings.push(`CD and ACD both off ${d}.`);
+      }
+    }
+  }
+  // ratio + last-3-working
+  for(const st of input.staff){
+    const s=schedules[st.id];
+    const off=countDaysOff(s), on=countWorkingDays(s), cd=off+on;
+    report.perStaff[st.id]=report.perStaff[st.id]||{};
+    Object.assign(report.perStaff[st.id],{daysOff:off,daysOn:on,contractDays:cd,
+      doPct: cd? Math.round(off/cd*100):0});
+    const maxOff = Math.max(0, cd - Math.ceil(cd*0.74));
+    if(cd>0 && off> maxOff) report.warnings.push(`${st.name} exceeds days-off cap (${off}/${cd}, keep \u226574% working).`);
+    for(const pd of protectedOn[st.id]){ if(s[pd] && (s[pd].am==='OFF'||s[pd].pm==='OFF')) report.warnings.push(`${st.name} is off during protected last-3 day ${pd}.`); }
+  }
+}
+
+// utils
+function deepClone(o){return JSON.parse(JSON.stringify(o));}
+function maxISO(a,b){return dayDiff(a,b)>=0?b:a;} // later of the two dates
+function minISO(a,b){return dayDiff(a,b)>=0?a:b;} // earlier of the two dates
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
 /* Multi-restart wrapper: run solve several times, keep the best by a weighted
    penalty that mirrors the priority order:
      floor breach        = 1000 (hardest; should never happen by construction)
