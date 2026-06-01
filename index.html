@@ -24,5 +24,123 @@
   </div>
 </div>
 
+<script>
 
+
+const SEASON_START = '2021-06-06'; // anchor; year is cosmetic, weekday math uses it
+const SEASON_END   = '2021-08-20';
+
+function parseISO(s){ const [y,m,d]=s.split('-').map(Number); return new Date(Date.UTC(y,m-1,d)); }
+function toISO(dt){ return dt.toISOString().slice(0,10); }
+function addDays(iso,n){ const d=parseISO(iso); d.setUTCDate(d.getUTCDate()+n); return toISO(d); }
+function dayDiff(a,b){ return Math.round((parseISO(b)-parseISO(a))/86400000); }
+function weekdayShort(iso){ return ['SUN','MON','TUES','WED','THU','FRI','SAT'][parseISO(iso).getUTCDay()]; }
+function monthDayLabel(iso){ const d=parseISO(iso); return d.getUTCDate()+'-'+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()]; }
+
+// Build the list of season dates we actually schedule on.
+function seasonDates(){
+  const out=[]; let cur=SEASON_START;
+  while(dayDiff(cur,SEASON_END)>=0){ out.push(cur); cur=addDays(cur,1); }
+  return out;
+}
+
+// contractDays = inclusive day count between start and end
+function contractDays(startISO,endISO){ return dayDiff(startISO,endISO)+1; }
+
+
+
+/* ---------------------------------------------------------------------------
+   GLOBAL OCCUPANCY: for each date+slot, how many staff are ON / total active.
+   active = staff whose contract covers that date (state not CLEAR/OTHER).
+--------------------------------------------------------------------------- */
+function buildOccupancy(schedules, dates){
+  const occ={}; // date -> {amOn,amActive,pmOn,pmActive}
+  for(const d of dates) occ[d]={amOn:0,amActive:0,pmOn:0,pmActive:0};
+  for(const sid in schedules){
+    const s=schedules[sid];
+    for(const d of dates){
+      const slot=s[d]; if(!slot) continue;
+      if(slot.am==='ON'){occ[d].amOn++;occ[d].amActive++;}
+      else if(slot.am==='OFF'){occ[d].amActive++;}
+      if(slot.pm==='ON'){occ[d].pmOn++;occ[d].pmActive++;}
+      else if(slot.pm==='OFF'){occ[d].pmActive++;}
+    }
+  }
+  return occ;
+}
+
+/* Would removing `staffSched` from camp on the off-set [depart..return]
+   keep every affected slot at/above the floor?  floorCount is an absolute
+   head count (computed from % * totalStaff, rounded up).               */
+function offSetRespectsFloor(occ, departISO, fullOffDays, floorCount){
+  // departing staffer is ON in AM (no change), OFF in PM of depart day,
+  // OFF both slots of full days, OFF in AM of return day.
+  const check=(date,slot)=>{
+    const o=occ[date]; if(!o) return false;
+    const on = slot==='am'? o.amOn : o.pmOn;
+    return (on-1) >= floorCount; // -1 because this staffer leaves that slot
+  };
+  if(!check(departISO,'pm')) return false;
+  for(let i=1;i<=fullOffDays;i++){
+    const d=addDays(departISO,i);
+    if(!check(d,'am')||!check(d,'pm')) return false;
+  }
+  if(!check(addDays(departISO,fullOffDays+1),'am')) return false;
+  return true;
+}
+
+function commitOffSetToOcc(occ, departISO, fullOffDays){
+  occ[departISO].pmOn--;
+  for(let i=1;i<=fullOffDays;i++){
+    const d=addDays(departISO,i); occ[d].amOn--; occ[d].pmOn--;
+  }
+  occ[addDays(departISO,fullOffDays+1)].amOn--;
+}
+
+
+/* Multi-restart wrapper: run solve several times, keep the best by a weighted
+   penalty that mirrors the priority order:
+     floor breach        = 1000 (hardest; should never happen by construction)
+     missed required day  = 100
+     ratio/cap warning    = 10
+     missed preferred     = 1                                              */
+function scoreResult(res,input){
+  let s=0;
+  for(const w of res.report.warnings){
+    if(w.includes('floor')) s+=1000;
+    else if(w.includes('required')) s+=100;
+    else s+=10;
+  }
+  // reward hitting targets + honoring preferred
+  for(const st of input.staff){
+    const ps=res.report.perStaff[st.id]||{};
+    s -= (ps.preferredMet||0)*1;
+    const tgt = st._targetOff||0, off=ps.daysOff||0;
+    s += Math.abs(off - tgt)*0.5; // closeness to 25% target
+  }
+  return s;
+}
+function solveBest(input, restarts=24){
+  let best=null;
+  for(let r=0;r<restarts;r++){
+    const res=solve(input, (Date.now()+r*2654435761)>>>0);
+    res._score=scoreResult(res,input);
+    if(!best || res._score<best._score){ best=res; }
+    if(best._score<=0 && best.report.warnings.length===0) break;
+  }
+  return best;
+}
+
+
+/* ====================== UI LAYER ====================== */
+const SEASON_START_UI='2021-06-06', SEASON_END_UI='2021-08-20';
+let staffRows=[]; let lastResult=null; let uid=0;
+
+function el(tag,cls,html){const e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;}
+function hasACD(){return document.querySelector('input[name=hasacd]:checked').value==='yes';}
+
+function roleFor(i){ if(i===0)return 'CD'; if(i===1&&hasACD())return 'ACD'; return 'PC'; }
+
+
+</script>
 </body></html>
