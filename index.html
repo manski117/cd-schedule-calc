@@ -17,7 +17,32 @@
 
   <div class="card">
     <h2><span class="num">1</span>Camp basics</h2>
-
+    <div class="row" style="margin-top:14px">
+      <div style="flex:2">
+        <label class="fld">Name of camp</label>
+        <input type="text" id="campName" placeholder="e.g. Sawmill Ridge"/>
+      </div>
+      <div>
+        <label class="fld">Does your camp have an ACD?</label>
+        <div class="radio-line" style="padding-top:7px">
+          <label><input type="radio" name="hasacd" value="yes"/> Yes</label>
+          <label><input type="radio" name="hasacd" value="no" checked/> No</label>
+        </div>
+      </div>
+      <div>
+        <label class="fld">Minimum % in camp (hard floor)</label>
+        <select id="minPct">
+          <option value="50">50%</option><option value="60">60%</option>
+          <option value="70">70%</option><option value="75" selected>75%</option>
+        </select>
+      </div>
+      <div>
+        <label class="fld">Maximize 21+ in camp?</label>
+        <div class="radio-line" style="padding-top:7px">
+          <label><input type="checkbox" id="prioritize21"/> Prioritize</label>
+        </div>
+      </div>
+    </div>
     <p class="footnote">The minimum % is the single most important rule: the calculator will never let in-camp head-count drop below it in any half-day.</p>
   </div>
 
@@ -69,6 +94,11 @@ function seasonDates(){
 // contractDays = inclusive day count between start and end
 function contractDays(startISO,endISO){ return dayDiff(startISO,endISO)+1; }
 
+/* ---------------------------------------------------------------------------
+   A staffer's schedule is stored as a Map<dateISO, {am,pm}>.
+   We only fill dates inside [max(start,SEASON_START) .. min(end,SEASON_END)].
+   Outside contract -> CLEAR. Before season but in contract -> OTHER (setup).
+--------------------------------------------------------------------------- */
 
 function blankSchedule(staff, dates){
   const sched={};
@@ -283,6 +313,31 @@ function solve(input, seed){
   return {schedules,dates,occupancy:occ,floorCount,report};
 }
 
+/* tryPlace: attempt an off-set; commit to both sched and occ if it passes
+   floor + protected-days + ACD/CD checks. Returns bool. */
+function tryPlace(sched,occ,st,departISO,fullOffDays,floorCount,protectedSet,extra){
+  const returnISO=addDays(departISO,fullOffDays+1);
+  if(!sched[departISO]||!sched[returnISO]) return false;
+  // protected last-3-working days must stay ON
+  const touch=[ [departISO,'pm'] ];
+  for(let i=1;i<=fullOffDays;i++){ const d=addDays(departISO,i); touch.push([d,'am'],[d,'pm']); }
+  touch.push([returnISO,'am']);
+  for(const [d,slot] of touch){
+    if(protectedSet.has(d)) return false;
+    if(!sched[d]||sched[d][slot]!=='ON') return false; // already off / clear
+  }
+  if(!offSetRespectsFloor(occ,departISO,fullOffDays,floorCount)) return false;
+  // ACD/CD mutual exclusion
+  if(extra && extra.cdSched && extra.isACD){
+    for(const [d,slot] of touch){ if(extra.cdSched[d] && extra.cdSched[d][slot]==='OFF') return false; }
+  }
+  if(extra && extra.acd && !extra.isACD && st && extra.cdSelf){
+    // when placing CD, ensure ACD not off there (checked elsewhere)
+  }
+  applyOffSet(sched,departISO,fullOffDays);
+  commitOffSetToOcc(occ,departISO,fullOffDays);
+  return true;
+}
 
 
 
