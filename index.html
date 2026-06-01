@@ -163,6 +163,155 @@ function hasACD(){return document.querySelector('input[name=hasacd]:checked').va
 
 function roleFor(i){ if(i===0)return 'CD'; if(i===1&&hasACD())return 'ACD'; return 'PC'; }
 
+function makeStaffRow(initial){
+  const id='st'+(uid++);
+  const data={id,name:initial&&initial.name||'',is21:initial?initial.is21:true,
+    start:initial&&initial.start||SEASON_START_UI,end:initial&&initial.end||SEASON_END_UI,
+    required:initial&&initial.required?[...initial.required]:[],
+    preferred:initial&&initial.preferred?[...initial.preferred]:[],
+    locked:false};
+  staffRows.push(data);
+  return data;
+}
+
+function renderStaff(){
+  const list=document.getElementById('staffList'); list.innerHTML='';
+  staffRows.forEach((d,i)=>{
+    const role=roleFor(i);
+    const wrap=el('div','staff'+(d.locked?' locked':''));
+    const top=el('div','top');
+    top.appendChild(el('div','idx',(i+1)+'.'));
+    const nmw=el('div','nm');
+    const roleLabel = role==='CD'?'Camp Director':role==='ACD'?'ACD':'Staff member name';
+    nmw.appendChild(el('label','fld',roleLabel));
+    const nm=el('input');nm.type='text';nm.placeholder=role==='CD'?'Director name':role==='ACD'?'ACD name':'Name';
+    nm.value=d.name;nm.oninput=e=>d.name=e.target.value;
+    nmw.appendChild(nm); top.appendChild(nmw);
+    if(role!=='PC'){const t=el('span','role-tag'+(role==='ACD'?' acd':''),role);top.appendChild(t);}
+    // is21
+    const c21=el('label','chk');
+    const cb=el('input');cb.type='checkbox';cb.checked=d.is21;
+    if(role!=='PC'){cb.checked=true;cb.disabled=true;d.is21=true;}
+    cb.onchange=e=>d.is21=e.target.checked;
+    c21.appendChild(cb);c21.appendChild(document.createTextNode('21 or older'));
+    top.appendChild(c21);
+    // lock
+    const cl=el('label','chk');
+    const lk=el('input');lk.type='checkbox';lk.checked=d.locked;
+    lk.onchange=e=>{d.locked=e.target.checked;wrap.classList.toggle('locked',d.locked);};
+    cl.appendChild(lk);cl.appendChild(document.createTextNode('Lock'));
+    top.appendChild(cl);
+    // delete (not for CD)
+    if(i!==0){const x=el('button','x','&times;');x.title='Remove';x.onclick=()=>{staffRows=staffRows.filter(s=>s.id!==d.id);renderStaff();};top.appendChild(x);}
+    wrap.appendChild(top);
+    // dates
+    const dr=el('div','dates-row');
+    const sd=el('div');sd.appendChild(el('label','fld','Start date'));
+    const si=el('input');si.type='date';si.value=d.start;si.min=SEASON_START_UI;si.oninput=e=>d.start=e.target.value;
+    sd.appendChild(si);dr.appendChild(sd);
+    const ed=el('div');ed.appendChild(el('label','fld','Last working day'));
+    const ei=el('input');ei.type='date';ei.value=d.end;ei.max=SEASON_END_UI;ei.oninput=e=>d.end=e.target.value;
+    ed.appendChild(ei);dr.appendChild(ed);
+    const cdv=el('div');cdv.appendChild(el('label','fld','Contract days'));
+    const cdspan=el('div','',contractDays(maxISO(d.start,SEASON_START),minISO(d.end,SEASON_END)));
+    cdspan.style.cssText='font-size:22px;font-weight:800;color:var(--pine);padding-top:4px;font-family:ui-sans-serif,system-ui,sans-serif';
+    si.addEventListener('input',()=>cdspan.textContent=contractDays(maxISO(d.start,SEASON_START),minISO(d.end,SEASON_END)));
+    ei.addEventListener('input',()=>cdspan.textContent=contractDays(maxISO(d.start,SEASON_START),minISO(d.end,SEASON_END)));
+    cdv.appendChild(cdspan);dr.appendChild(cdv);
+    wrap.appendChild(dr);
+    // off blocks
+    const ob=el('div','off-block');
+    ob.appendChild(makeOffCol(d,'required','Required days off','max 3',3));
+    ob.appendChild(makeOffCol(d,'preferred','Preferred days off','any number',999));
+    wrap.appendChild(ob);
+    list.appendChild(wrap);
+  });
+}
+
+function makeOffCol(d,key,title,pillTxt,limit){
+  const col=el('div','off-col');
+  const h=el('h4',null,title+' <span class="pill'+(key==='preferred'?' pref':'')+'">'+pillTxt+'</span>');
+  col.appendChild(h);
+  const holder=el('div');
+  function redraw(){
+    holder.innerHTML='';
+    d[key].forEach((val,idx)=>{
+      const r=el('div','daterow');
+      const inp=el('input');inp.type='date';inp.min=SEASON_START_UI;inp.max=SEASON_END_UI;inp.value=val;
+      inp.oninput=e=>d[key][idx]=e.target.value;
+      const x=el('button','x','&times;');x.onclick=()=>{d[key].splice(idx,1);redraw();};
+      r.appendChild(inp);r.appendChild(x);holder.appendChild(r);
+    });
+    addBtn.classList.toggle('hidden',d[key].length>=limit);
+  }
+  col.appendChild(holder);
+  const addBtn=el('button','mini','+ add a day');
+  addBtn.onclick=()=>{if(d[key].length<limit){d[key].push(SEASON_START_UI);redraw();}};
+  col.appendChild(addBtn);
+  redraw();
+  return col;
+}
+
+// init 4 rows
+for(let i=0;i<4;i++) makeStaffRow();
+renderStaff();
+document.getElementById('addStaff').onclick=()=>{makeStaffRow();renderStaff();};
+document.querySelectorAll('input[name=hasacd]').forEach(r=>r.onchange=renderStaff);
+
+
+/* ---- output rendering ---- */
+function renderOutput(res,input){
+  const sb=document.getElementById('statusBox');
+  if(res.report.warnings.length===0){
+    sb.className=''; sb.innerHTML='<div class="okbox">&#10003; All hard constraints satisfied &mdash; in-camp floor of '+res.floorCount+' staff held in every half-day, required days off honored, last 3 working days protected'+(input.hasACD?', CD &amp; ACD never off together':'')+'.</div>';
+  } else {
+    const ul=res.report.warnings.map(w=>'<li>'+w+'</li>').join('');
+    sb.innerHTML='<div class="warnbox"><b>'+res.report.warnings.length+' note(s)</b> &mdash; the floor was kept absolute; these are softer goals that couldn&rsquo;t be fully met (often unavoidable at a high in-camp %):<ul>'+ul+'</ul></div>';
+  }
+  // stat cards
+  const sc=document.getElementById('statCards'); sc.innerHTML='';
+  input.staff.forEach(st=>{
+    const ps=res.report.perStaff[st.id]||{};
+    const card=el('div','stat');
+    card.innerHTML='<div class="n">'+(ps.doPct||0)+'%</div><div class="l">'+st.name+' &middot; '+(ps.daysOff||0)+' off / '+(ps.contractDays||0)+' days</div>';
+    sc.appendChild(card);
+  });
+  renderCalendar(res,input);
+}
+
+function stateClass(s){return s.toLowerCase();}
+function renderCalendar(res,input){
+  const t=document.getElementById('calTable'); t.innerHTML='';
+  const thead=el('thead'); const hr=el('tr');
+  hr.appendChild(el('th','daycol','Day'));
+  input.staff.forEach(st=>hr.appendChild(el('th',null,st.name)));
+  thead.appendChild(hr); t.appendChild(thead);
+  const tb=el('tbody');
+  res.dates.forEach(d=>{
+    const wd=weekdayShort(d);
+    const tr=el('tr'); if(wd==='SUN') tr.className='weekstart';
+    const lab=el('td','daylab'); lab.innerHTML='<div style="font-size:11px;color:#8a7f63">'+wd+'</div>'+monthDayLabel(d);
+    tr.appendChild(lab);
+    input.staff.forEach(st=>{
+      const sl=res.schedules[st.id][d]||{am:'CLEAR',pm:'CLEAR'};
+      const td=el('td');
+      td.innerHTML='<div class="slotcell"><div class="half '+stateClass(sl.am)+'">'+labelFor(sl.am)+'</div><div class="half '+stateClass(sl.pm)+'">'+labelFor(sl.pm)+'</div></div>';
+      tr.appendChild(td);
+    });
+    tb.appendChild(tr);
+  });
+  t.appendChild(tb);
+  // summary row: in-camp count per day (PM)
+  const tf=el('tbody');
+  const sr=el('tr','sumrow');
+  sr.appendChild(el('td','daylab','&#9660; in camp (am/pm)'));
+  // we already show per-cell; add nothing per staff col, span note instead
+  input.staff.forEach(()=>sr.appendChild(el('td','','')));
+  // Instead, append a compact footer row showing min headcount
+  let minAm=999,minPm=999;
+  res.dates.forEach(d=>{const o=res.occupancy[d];if(o.amActive){minAm=Math.min(minAm,o.amOn);}if(o.pmActive){minPm=Math.min(minPm,o.pmOn);}});
+}
+function labelFor(s){return s==='ON'?'on':s==='OFF'?'OFF':s==='OTHER'?'oth':'';}
 
 </script>
 </body></html>
