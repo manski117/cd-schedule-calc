@@ -16,11 +16,33 @@
   </header>
 
   <div class="card">
+    <h2><span class="num">1</span>Camp basics</h2>
 
+    <p class="footnote">The minimum % is the single most important rule: the calculator will never let in-camp head-count drop below it in any half-day.</p>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">2</span>Staff members</h2>
+    <p class="hint">#1 is always the Camp Director. Check &ldquo;Lock&rdquo; to keep a schedule frozen on recalculate. Each staffer may have up to 3 required days off.</p>
+    <div class="legend" style="margin-bottom:14px">
+      <span><span class="sw on"></span>Lock = won&rsquo;t be recalculated</span>
+    </div>
+    <div id="staffList"></div>
+    <button class="btn add" id="addStaff">+ Add another staff member</button>
+  </div>
+
+  <div class="card">
+    <div class="actions">
+      <button class="btn primary" id="calcBtn">Calculate schedule</button>
+      <button class="btn ghost hidden" id="recalcBtn">&#8635; Recalculate unlocked</button>
+      <span class="footnote" id="calcNote"></span>
+    </div>
   </div>
 
   <div id="output" class="hidden">
+    <div class="card">
 
+    </div>
   </div>
 </div>
 
