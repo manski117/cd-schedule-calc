@@ -340,6 +340,59 @@ function tryPlace(sched,occ,st,departISO,fullOffDays,floorCount,protectedSet,ext
 }
 
 
+function placeNextSet(sched,occ,st,floorCount,protectedSet,extra){
+  const dates=extra.dates, isACD=extra.isACD;
+  const minStreak=extra.minStreak||7;
+  if(countDaysOff(sched) >= st._maxOff) return false;
+  let firstIdx=dates.findIndex(d=>sched[d]&&sched[d].am!=='CLEAR');
+  let lastIdx=-1; for(let i=dates.length-1;i>=0;i--){ if(sched[dates[i]]&&sched[dates[i]].am!=='CLEAR'){lastIdx=i;break;} }
+  if(firstIdx<0) return false;
+
+  // Build streak map: days since previous OFF slot.
+  const candidates=[];
+  let streak=0;
+  for(let i=firstIdx;i<=lastIdx;i++){
+    const d=dates[i];
+    if(!sched[d]||sched[d].am==='CLEAR') {streak=0; continue;}
+    if(sched[d].am==='OFF'||sched[d].pm==='OFF'){streak=0; continue;}
+    streak++;
+    // candidate departure = this day if we've built up enough streak
+    if(streak>=minStreak){
+      // score: distance from ideal 9-on (prefer 9, accept 7-12); add preferred bonus
+      const idealPenalty=Math.abs(streak-9);
+      const prefBonus = st.preferred && st.preferred.some(p=>Math.abs(dayDiff(p,d))<=2)? -3:0;
+      candidates.push({d,score:idealPenalty+prefBonus});
+    }
+  }
+  candidates.sort((a,b)=> (a.score-b.score)||(extra.rng()-0.5));
+  const curOff=countDaysOff(sched);
+  for(const c of candidates){
+    for(const len of [3,2]){
+      const setCost = len + 1.0; // full days + two half days
+      if(curOff + setCost > st._maxOff + 1e-9) continue; // would exceed cap
+      if(tryPlace(sched,occ,st,c.d,len,floorCount,protectedSet,{isACD,cdSched:extra.cdSched})){
+        // also guard CD-placing-against-ACD direction
+        if(extra.acdSched){
+          const touch=offSetSlots(c.d,len);
+          let conflict=touch.some(([dd,sl])=>extra.acdSched[dd]&&extra.acdSched[dd][sl]==='OFF');
+          if(conflict){ undoPlace(sched,occ,c.d,len); continue; }
+        }
+        return true;
+      }
+    }
+  }
+  return false;
+}
+function offSetSlots(departISO,len){
+  const t=[[departISO,'pm']];
+  for(let i=1;i<=len;i++){const d=addDays(departISO,i);t.push([d,'am'],[d,'pm']);}
+  t.push([addDays(departISO,len+1),'am']); return t;
+}
+function undoPlace(sched,occ,departISO,len){
+  sched[departISO].pm='ON'; occ[departISO].pmOn++;
+  for(let i=1;i<=len;i++){const d=addDays(departISO,i);sched[d].am='ON';sched[d].pm='ON';occ[d].amOn++;occ[d].pmOn++;}
+  const r=addDays(departISO,len+1); sched[r].am='ON'; occ[r].amOn++;
+}
 
 function orderForFairness(list,rng,prioritize21){
   const arr=[...list];
