@@ -613,5 +613,52 @@ function renderCalendar(res,input){
 }
 function labelFor(s){return s==='ON'?'on':s==='OFF'?'OFF':s==='OTHER'?'oth':'';}
 
+/* ---- export ---- */
+function buildGrid(res,input){
+  const head=['Day','Date',...input.staff.map(s=>s.name)];
+  const rows=[];
+  // header info block (mirrors the example sheet)
+  rows.push(['Contract Days','',...input.staff.map(s=>(res.report.perStaff[s.id]||{}).contractDays||0)]);
+  rows.push(['Days Off','',...input.staff.map(s=>(res.report.perStaff[s.id]||{}).daysOff||0)]);
+  rows.push(['DO Percent','',...input.staff.map(s=>((res.report.perStaff[s.id]||{}).doPct||0)+'%')]);
+  rows.push([]);
+  rows.push(head);
+  res.dates.forEach(d=>{
+    const wd=weekdayShort(d), dl=monthDayLabel(d);
+    // AM row then PM row, like the example (two lines per day)
+    rows.push([wd,dl,...input.staff.map(s=>cellTxt((res.schedules[s.id][d]||{}).am))]);
+    rows.push(['',dl,...input.staff.map(s=>cellTxt((res.schedules[s.id][d]||{}).pm))]);
+  });
+  return rows;
+}
+function cellTxt(s){return s==='ON'?'On':s==='OFF'?'Off':s==='OTHER'?'Other':'Clear';}
+
+function download(){
+  const res=lastResult,input=res._input;
+  const rows=buildGrid(res,input);
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  // color fills
+  const fill={On:'6F9C3F',Off:'B23A2E',Other:'E0A73A',Clear:'E7E0CF'};
+  const range=XLSX.utils.decode_range(ws['!ref']);
+  for(let R=range.s.r;R<=range.e.r;R++){
+    for(let C=2;C<=range.e.c;C++){
+      const addr=XLSX.utils.encode_cell({r:R,c:C});const cell=ws[addr];
+      if(cell&&fill[cell.v]){cell.s={fill:{patternType:'solid',fgColor:{rgb:fill[cell.v]}},
+        font:{color:{rgb:cell.v==='Other'||cell.v==='Clear'?'5B3D12':'FFFFFF'},bold:true},
+        alignment:{horizontal:'center'}};}
+    }
+  }
+  ws['!cols']=[{wch:7},{wch:9},...input.staff.map(()=>({wch:9}))];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,(document.getElementById('campName').value||'Camp').slice(0,28)||'Schedule');
+  XLSX.writeFile(wb,(document.getElementById('campName').value||'camp')+'_dayoff_schedule.xlsx');
+}
+document.getElementById('dlBtn').onclick=download;
+document.getElementById('dlCsv').onclick=()=>{
+  const res=lastResult,input=res._input;const rows=buildGrid(res,input);
+  const csv=rows.map(r=>r.map(c=>('"'+String(c==null?'':c).replace(/"/g,'""')+'"')).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download=(document.getElementById('campName').value||'camp')+'_dayoff_schedule.csv';a.click();
+};
 </script>
 </body></html>
