@@ -66,7 +66,21 @@
 
   <div id="output" class="hidden">
     <div class="card">
-
+      <h2><span class="num">3</span>Results</h2>
+      <div id="statusBox"></div>
+      <div class="statcard" id="statCards"></div>
+      <div class="actions" style="margin:14px 0 18px">
+        <button class="btn primary" id="dlBtn">&#8681; Download spreadsheet (.xlsx)</button>
+        <button class="btn ghost" id="dlCsv">&#8681; CSV instead</button>
+      </div>
+      <div class="legend">
+        <span><span class="sw on"></span>On (working)</span>
+        <span><span class="sw off"></span>Off (day off)</span>
+        <span><span class="sw other"></span>Other (setup / travel)</span>
+        <span><span class="sw clear"></span>Clear (outside contract)</span>
+        <span class="footnote">Each cell = morning&#9474;afternoon. Day-off sets start at noon and end at noon (hike in/out).</span>
+      </div>
+      <div class="calwrap"><table class="cal" id="calTable"></table></div>
     </div>
   </div>
 </div>
@@ -257,7 +271,11 @@ function solve(input, seed){
   const acd = input.hasACD? input.staff[1] : null;
 
 
-
+  /* Target-driven balanced placement.
+     We repeatedly pick the staffer FURTHEST below their 25% target (fairness:
+     whoever has sacrificed the most days off so far gets served first), and
+     try to lay their next off-set after a ~9-day working streak. We keep going
+     until everyone is at/above target or no more legal sets can be placed. */
   const cdSched = schedules[cd.id];
   let progress=true, guard=0;
   // Phase A: bring everyone toward 25% target (fairness-ordered).
@@ -339,7 +357,11 @@ function tryPlace(sched,occ,st,departISO,fullOffDays,floorCount,protectedSet,ext
   return true;
 }
 
-
+/* placeNextSet: lay ONE off-set for this staffer in the best legal spot.
+   Strategy: scan the season, track current ON streak, and at the first point
+   the streak reaches the ideal (>=9 days since last off, or season start),
+   try a 3-day set then 2-day fallback. Among all legal candidate start days,
+   prefer the one closest to the 9-on rhythm and to a preferred date. */
 function placeNextSet(sched,occ,st,floorCount,protectedSet,extra){
   const dates=extra.dates, isACD=extra.isACD;
   const minStreak=extra.minStreak||7;
