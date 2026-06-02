@@ -1,212 +1,687 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Camp Day-Off Scheduler</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<style>
-:root{
-  --ink:#1c2b21; --paper:#f4efe3; --paper2:#ece4d2; --line:#cabfa3;
-  --pine:#2f5d3f; --pine2:#3e7350; --moss:#7a8a3c; --clay:#b5562f; --rust:#8a3a1e;
-  --on:#6f9c3f; --on2:#5c8533; --off:#b23a2e; --other:#e0a73a; --clear:#e7e0cf;
-  --shadow:0 2px 0 rgba(0,0,0,.08), 0 10px 30px rgba(47,93,63,.10);
-}
-*{box-sizing:border-box}
-body{margin:0;font-family:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif;
-  color:var(--ink);background:
-   radial-gradient(1200px 500px at 80% -10%, rgba(122,138,60,.12), transparent 60%),
-   radial-gradient(900px 500px at -10% 110%, rgba(47,93,63,.12), transparent 60%),
-   var(--paper);
-  background-attachment:fixed;}
-.wrap{max-width:1180px;margin:0 auto;padding:28px 22px 80px}
-header.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;
-  border-bottom:3px double var(--line);padding-bottom:16px;margin-bottom:24px;flex-wrap:wrap}
-.hero h1{font-size:clamp(28px,4vw,44px);margin:0;letter-spacing:-.5px;line-height:1;
-  font-weight:800}
-.hero h1 .glyph{color:var(--pine)}
-.hero p{margin:6px 0 0;color:#5b5340;font-style:italic;max-width:46ch}
-.badge{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--rust);
-  border:1.5px solid var(--rust);border-radius:999px;padding:5px 12px;white-space:nowrap}
-.card{background:linear-gradient(180deg,#fbf7ee,#f4efe3);border:1.5px solid var(--line);
-  border-radius:14px;box-shadow:var(--shadow);padding:22px;margin-bottom:22px;position:relative}
-.card::before{content:"";position:absolute;inset:0;border-radius:14px;pointer-events:none;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.6)}
-.card h2{margin:0 0 4px;font-size:20px;letter-spacing:.02em}
-.card h2 .num{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:7px;
-  background:var(--pine);color:#fff;font-size:14px;margin-right:9px;vertical-align:middle}
-.hint{color:#6b6350;font-size:13.5px;margin:2px 0 16px;font-style:italic}
-label.fld{display:block;font-size:13px;text-transform:uppercase;letter-spacing:.08em;
-  color:#5b5340;margin-bottom:5px;font-style:normal;font-family:ui-sans-serif,system-ui,sans-serif}
-input[type=text],input[type=date],select{font:inherit;font-size:15px;padding:9px 11px;
-  border:1.5px solid var(--line);border-radius:9px;background:#fffdf8;color:var(--ink);width:100%}
-input[type=text]:focus,input[type=date]:focus,select:focus{outline:none;border-color:var(--pine2);
-  box-shadow:0 0 0 3px rgba(62,115,80,.16)}
-.row{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end}
-.row>div{flex:1;min-width:170px}
-.radio-line{display:flex;gap:18px;align-items:center;font-family:ui-sans-serif,system-ui,sans-serif}
-.radio-line label{display:flex;gap:7px;align-items:center;font-size:15px;cursor:pointer}
-.staff{border:1.5px solid var(--line);border-left:5px solid var(--pine);border-radius:11px;
-  padding:16px 16px 14px;margin-bottom:14px;background:#fbf8f0;transition:.18s}
-.staff.locked{border-left-color:var(--clay);background:#fbf3e8}
-.staff .top{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap}
-.staff .idx{font-weight:800;font-size:22px;color:var(--pine);min-width:30px}
-.staff .nm{flex:2;min-width:180px}
-.staff .role-tag{font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:700;
-  letter-spacing:.1em;text-transform:uppercase;color:#fff;background:var(--pine2);
-  padding:3px 8px;border-radius:6px;align-self:center}
-.staff .role-tag.acd{background:var(--moss)}
-.chk{display:flex;align-items:center;gap:7px;font-family:ui-sans-serif,system-ui,sans-serif;
-  font-size:14px;white-space:nowrap;cursor:pointer;padding-bottom:9px}
-.chk input{width:17px;height:17px;accent-color:var(--pine)}
-.dates-row{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px}
-.dates-row>div{flex:1;min-width:150px}
-.off-block{margin-top:12px;display:flex;gap:18px;flex-wrap:wrap}
-.off-col{flex:1;min-width:230px}
-.off-col h4{margin:0 0 7px;font-size:12px;letter-spacing:.09em;text-transform:uppercase;
-  font-family:ui-sans-serif,system-ui,sans-serif;color:#5b5340}
-.off-col h4 .pill{font-size:10px;background:var(--clay);color:#fff;border-radius:5px;padding:1px 6px;margin-left:6px}
-.off-col h4 .pill.pref{background:var(--moss)}
-.daterow{display:flex;gap:8px;margin-bottom:7px}
-.daterow input{flex:1}
-.mini{font:inherit;font-size:13px;font-family:ui-sans-serif,system-ui,sans-serif;cursor:pointer;
-  border:1.5px solid var(--line);background:#fff;border-radius:8px;padding:7px 10px;color:var(--ink)}
-.mini:hover{border-color:var(--pine2);background:#f3f7ef}
-.x{border:none;background:none;color:var(--off);font-size:20px;cursor:pointer;line-height:1;padding:0 6px}
-.x:hover{color:var(--rust)}
-.btn{font:inherit;font-family:ui-sans-serif,system-ui,sans-serif;font-weight:700;cursor:pointer;
-  border:none;border-radius:10px;padding:11px 18px;font-size:15px}
-.btn.add{background:#eef2e2;color:var(--pine);border:1.5px dashed var(--moss)}
-.btn.add:hover{background:#e6ecd4}
-.btn.primary{background:linear-gradient(180deg,var(--pine2),var(--pine));color:#fff;
-  font-size:17px;padding:14px 30px;box-shadow:0 4px 0 var(--rust),0 10px 24px rgba(47,93,63,.3);
-  letter-spacing:.02em}
-.btn.primary:active{transform:translateY(3px);box-shadow:0 1px 0 var(--rust)}
-.btn.ghost{background:#fff;border:1.5px solid var(--line);color:var(--ink)}
-.btn.ghost:hover{border-color:var(--pine2)}
-.actions{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:6px}
-.legend{display:flex;gap:14px;flex-wrap:wrap;font-family:ui-sans-serif,system-ui,sans-serif;
-  font-size:13px;margin:4px 0 16px}
-.legend span{display:flex;align-items:center;gap:6px}
-.sw{width:15px;height:15px;border-radius:4px;border:1px solid rgba(0,0,0,.15)}
-.sw.on{background:var(--on)}.sw.off{background:var(--off)}.sw.other{background:var(--other)}.sw.clear{background:var(--clear)}
-.calwrap{overflow:auto;border:1.5px solid var(--line);border-radius:11px;max-height:74vh}
-table.cal{border-collapse:collapse;width:100%;font-family:ui-sans-serif,system-ui,sans-serif;font-size:12.5px}
-table.cal th,table.cal td{border:1px solid #e3dcc8;padding:0;text-align:center}
-table.cal thead th{position:sticky;top:0;z-index:3;background:var(--pine);color:#fff;
-  padding:9px 8px;font-weight:700;letter-spacing:.03em}
-table.cal thead th.daycol{background:var(--ink)}
-table.cal td.daylab,table.cal th.daycol{position:sticky;left:0;z-index:2;background:#efe8d6;
-  font-weight:700;white-space:nowrap;padding:0 10px;text-align:left;min-width:96px}
-table.cal tr.weekstart td,table.cal tr.weekstart th{border-top:2px solid var(--pine)}
-.slotcell{display:flex;height:30px}
-.half{flex:1;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;
-  color:rgba(255,255,255,.92);border-right:1px solid rgba(255,255,255,.25)}
-.half:last-child{border-right:none}
-.half.on{background:var(--on)}.half.off{background:var(--off)}
-.half.other{background:var(--other);color:#5b3d12}.half.clear{background:var(--clear);color:#a89c80}
-.sumrow td{background:#26402e;color:#dfe8c8;font-weight:700;font-size:11px;padding:6px 4px;position:sticky;bottom:0;z-index:1}
-.statcard{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:6px}
-.stat{background:#fffdf8;border:1.5px solid var(--line);border-radius:10px;padding:11px 13px;
-  font-family:ui-sans-serif,system-ui,sans-serif}
-.stat .n{font-size:24px;font-weight:800;color:var(--pine)}
-.stat .l{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#6b6350}
-.warnbox{background:#fbeee7;border:1.5px solid var(--clay);border-radius:10px;padding:12px 14px;
-  font-family:ui-sans-serif,system-ui,sans-serif;font-size:13.5px;margin-bottom:14px}
-.warnbox b{color:var(--rust)}
-.warnbox ul{margin:6px 0 0;padding-left:20px}
-.okbox{background:#eef4e3;border:1.5px solid var(--on2);color:#3a5320;border-radius:10px;
-  padding:12px 14px;font-family:ui-sans-serif,system-ui,sans-serif;font-size:14px;margin-bottom:14px}
-.hidden{display:none}
-.spinner{display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,.4);
-  border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px;margin-right:8px}
-@keyframes sp{to{transform:rotate(360deg)}}
-.footnote{font-size:12.5px;color:#6b6350;font-style:italic;margin-top:8px}
-</style>
-</head>
-<body>
-<div class="wrap">
-  <header class="hero">
-    <div>
-      <h1><span class="glyph">&#9650;</span> Camp Day-Off Scheduler</h1>
-      <p>Builds a season of staff days off that respect your in-camp floor, contracts, and required dates &mdash; entirely in your browser.</p>
-    </div>
-    <div class="badge">Jun 6 &ndash; Aug 20 &middot; no internet needed</div>
-  </header>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Camp Day-Off Scheduler</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+      :root {
+        --ink: #1c2b21;
+        --paper: #f4efe3;
+        --paper2: #ece4d2;
+        --line: #cabfa3;
+        --pine: #2f5d3f;
+        --pine2: #3e7350;
+        --moss: #7a8a3c;
+        --clay: #b5562f;
+        --rust: #8a3a1e;
+        --on: #6f9c3f;
+        --on2: #5c8533;
+        --off: #b23a2e;
+        --other: #e0a73a;
+        --clear: #e7e0cf;
+        --shadow: 0 2px 0 rgba(0, 0, 0, 0.08), 0 10px 30px rgba(47, 93, 63, 0.1);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia,
+          serif;
+        color: var(--ink);
+        background: radial-gradient(
+            1200px 500px at 80% -10%,
+            rgba(122, 138, 60, 0.12),
+            transparent 60%
+          ),
+          radial-gradient(
+            900px 500px at -10% 110%,
+            rgba(47, 93, 63, 0.12),
+            transparent 60%
+          ),
+          var(--paper);
+        background-attachment: fixed;
+      }
+      .wrap {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 28px 22px 80px;
+      }
+      header.hero {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 20px;
+        border-bottom: 3px double var(--line);
+        padding-bottom: 16px;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+      }
+      .hero h1 {
+        font-size: clamp(28px, 4vw, 44px);
+        margin: 0;
+        letter-spacing: -0.5px;
+        line-height: 1;
+        font-weight: 800;
+      }
+      .hero h1 .glyph {
+        color: var(--pine);
+      }
+      .hero p {
+        margin: 6px 0 0;
+        color: #5b5340;
+        font-style: italic;
+        max-width: 46ch;
+      }
+      .badge {
+        font-size: 12px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--rust);
+        border: 1.5px solid var(--rust);
+        border-radius: 999px;
+        padding: 5px 12px;
+        white-space: nowrap;
+      }
+      .card {
+        background: linear-gradient(180deg, #fbf7ee, #f4efe3);
+        border: 1.5px solid var(--line);
+        border-radius: 14px;
+        box-shadow: var(--shadow);
+        padding: 22px;
+        margin-bottom: 22px;
+        position: relative;
+      }
+      .card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 14px;
+        pointer-events: none;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+      }
+      .card h2 {
+        margin: 0 0 4px;
+        font-size: 20px;
+        letter-spacing: 0.02em;
+      }
+      .card h2 .num {
+        display: inline-grid;
+        place-items: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 7px;
+        background: var(--pine);
+        color: #fff;
+        font-size: 14px;
+        margin-right: 9px;
+        vertical-align: middle;
+      }
+      .hint {
+        color: #6b6350;
+        font-size: 13.5px;
+        margin: 2px 0 16px;
+        font-style: italic;
+      }
+      label.fld {
+        display: block;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #5b5340;
+        margin-bottom: 5px;
+        font-style: normal;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+      }
+      input[type="text"],
+      input[type="date"],
+      select {
+        font: inherit;
+        font-size: 15px;
+        padding: 9px 11px;
+        border: 1.5px solid var(--line);
+        border-radius: 9px;
+        background: #fffdf8;
+        color: var(--ink);
+        width: 100%;
+      }
+      input[type="text"]:focus,
+      input[type="date"]:focus,
+      select:focus {
+        outline: none;
+        border-color: var(--pine2);
+        box-shadow: 0 0 0 3px rgba(62, 115, 80, 0.16);
+      }
+      .row {
+        display: flex;
+        gap: 18px;
+        flex-wrap: wrap;
+        align-items: flex-end;
+      }
+      .row > div {
+        flex: 1;
+        min-width: 170px;
+      }
+      .radio-line {
+        display: flex;
+        gap: 18px;
+        align-items: center;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+      }
+      .radio-line label {
+        display: flex;
+        gap: 7px;
+        align-items: center;
+        font-size: 15px;
+        cursor: pointer;
+      }
+      .staff {
+        border: 1.5px solid var(--line);
+        border-left: 5px solid var(--pine);
+        border-radius: 11px;
+        padding: 16px 16px 14px;
+        margin-bottom: 14px;
+        background: #fbf8f0;
+        transition: 0.18s;
+      }
+      .staff.locked {
+        border-left-color: var(--clay);
+        background: #fbf3e8;
+      }
+      .staff .top {
+        display: flex;
+        gap: 14px;
+        align-items: flex-end;
+        flex-wrap: wrap;
+      }
+      .staff .idx {
+        font-weight: 800;
+        font-size: 22px;
+        color: var(--pine);
+        min-width: 30px;
+      }
+      .staff .nm {
+        flex: 2;
+        min-width: 180px;
+      }
+      .staff .role-tag {
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #fff;
+        background: var(--pine2);
+        padding: 3px 8px;
+        border-radius: 6px;
+        align-self: center;
+      }
+      .staff .role-tag.acd {
+        background: var(--moss);
+      }
+      .chk {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        font-size: 14px;
+        white-space: nowrap;
+        cursor: pointer;
+        padding-bottom: 9px;
+      }
+      .chk input {
+        width: 17px;
+        height: 17px;
+        accent-color: var(--pine);
+      }
+      .dates-row {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+      .dates-row > div {
+        flex: 1;
+        min-width: 150px;
+      }
+      .off-block {
+        margin-top: 12px;
+        display: flex;
+        gap: 18px;
+        flex-wrap: wrap;
+      }
+      .off-col {
+        flex: 1;
+        min-width: 230px;
+      }
+      .off-col h4 {
+        margin: 0 0 7px;
+        font-size: 12px;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        color: #5b5340;
+      }
+      .off-col h4 .pill {
+        font-size: 10px;
+        background: var(--clay);
+        color: #fff;
+        border-radius: 5px;
+        padding: 1px 6px;
+        margin-left: 6px;
+      }
+      .off-col h4 .pill.pref {
+        background: var(--moss);
+      }
+      .daterow {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 7px;
+      }
+      .daterow input {
+        flex: 1;
+      }
+      .mini {
+        font: inherit;
+        font-size: 13px;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        cursor: pointer;
+        border: 1.5px solid var(--line);
+        background: #fff;
+        border-radius: 8px;
+        padding: 7px 10px;
+        color: var(--ink);
+      }
+      .mini:hover {
+        border-color: var(--pine2);
+        background: #f3f7ef;
+      }
+      .x {
+        border: none;
+        background: none;
+        color: var(--off);
+        font-size: 20px;
+        cursor: pointer;
+        line-height: 1;
+        padding: 0 6px;
+      }
+      .x:hover {
+        color: var(--rust);
+      }
+      .btn {
+        font: inherit;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        font-weight: 700;
+        cursor: pointer;
+        border: none;
+        border-radius: 10px;
+        padding: 11px 18px;
+        font-size: 15px;
+      }
+      .btn.add {
+        background: #eef2e2;
+        color: var(--pine);
+        border: 1.5px dashed var(--moss);
+      }
+      .btn.add:hover {
+        background: #e6ecd4;
+      }
+      .btn.primary {
+        background: linear-gradient(180deg, var(--pine2), var(--pine));
+        color: #fff;
+        font-size: 17px;
+        padding: 14px 30px;
+        box-shadow: 0 4px 0 var(--rust), 0 10px 24px rgba(47, 93, 63, 0.3);
+        letter-spacing: 0.02em;
+      }
+      .btn.primary:active {
+        transform: translateY(3px);
+        box-shadow: 0 1px 0 var(--rust);
+      }
+      .btn.ghost {
+        background: #fff;
+        border: 1.5px solid var(--line);
+        color: var(--ink);
+      }
+      .btn.ghost:hover {
+        border-color: var(--pine2);
+      }
+      .actions {
+        display: flex;
+        gap: 14px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-top: 6px;
+      }
+      .legend {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        font-size: 13px;
+        margin: 4px 0 16px;
+      }
+      .legend span {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .sw {
+        width: 15px;
+        height: 15px;
+        border-radius: 4px;
+        border: 1px solid rgba(0, 0, 0, 0.15);
+      }
+      .sw.on {
+        background: var(--on);
+      }
+      .sw.off {
+        background: var(--off);
+      }
+      .sw.other {
+        background: var(--other);
+      }
+      .sw.clear {
+        background: var(--clear);
+      }
+      .calwrap {
+        overflow: auto;
+        border: 1.5px solid var(--line);
+        border-radius: 11px;
+        max-height: 74vh;
+      }
+      table.cal {
+        border-collapse: collapse;
+        width: 100%;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        font-size: 12.5px;
+      }
+      table.cal th,
+      table.cal td {
+        border: 1px solid #e3dcc8;
+        padding: 0;
+        text-align: center;
+      }
+      table.cal thead th {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        background: var(--pine);
+        color: #fff;
+        padding: 9px 8px;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+      }
+      table.cal thead th.daycol {
+        background: var(--ink);
+      }
+      table.cal td.daylab,
+      table.cal th.daycol {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        background: #efe8d6;
+        font-weight: 700;
+        white-space: nowrap;
+        padding: 0 10px;
+        text-align: left;
+        min-width: 96px;
+      }
+      table.cal tr.weekstart td,
+      table.cal tr.weekstart th {
+        border-top: 2px solid var(--pine);
+      }
+      .slotcell {
+        display: flex;
+        height: 30px;
+      }
+      .half {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.92);
+        border-right: 1px solid rgba(255, 255, 255, 0.25);
+      }
+      .half:last-child {
+        border-right: none;
+      }
+      .half.on {
+        background: var(--on);
+      }
+      .half.off {
+        background: var(--off);
+      }
+      .half.other {
+        background: var(--other);
+        color: #5b3d12;
+      }
+      .half.clear {
+        background: var(--clear);
+        color: #a89c80;
+      }
+      .sumrow td {
+        background: #26402e;
+        color: #dfe8c8;
+        font-weight: 700;
+        font-size: 11px;
+        padding: 6px 4px;
+        position: sticky;
+        bottom: 0;
+        z-index: 1;
+      }
+      .statcard {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px;
+        margin-bottom: 6px;
+      }
+      .stat {
+        background: #fffdf8;
+        border: 1.5px solid var(--line);
+        border-radius: 10px;
+        padding: 11px 13px;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+      }
+      .stat .n {
+        font-size: 24px;
+        font-weight: 800;
+        color: var(--pine);
+      }
+      .stat .l {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #6b6350;
+      }
+      .warnbox {
+        background: #fbeee7;
+        border: 1.5px solid var(--clay);
+        border-radius: 10px;
+        padding: 12px 14px;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        font-size: 13.5px;
+        margin-bottom: 14px;
+      }
+      .warnbox b {
+        color: var(--rust);
+      }
+      .warnbox ul {
+        margin: 6px 0 0;
+        padding-left: 20px;
+      }
+      .okbox {
+        background: #eef4e3;
+        border: 1.5px solid var(--on2);
+        color: #3a5320;
+        border-radius: 10px;
+        padding: 12px 14px;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        font-size: 14px;
+        margin-bottom: 14px;
+      }
+      .hidden {
+        display: none;
+      }
+      .spinner {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        border: 3px solid rgba(255, 255, 255, 0.4);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: sp 0.7s linear infinite;
+        vertical-align: -3px;
+        margin-right: 8px;
+      }
+      @keyframes sp {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .footnote {
+        font-size: 12.5px;
+        color: #6b6350;
+        font-style: italic;
+        margin-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="hero">
+        <div>
+          <h1><span class="glyph">&#9650;</span> Camp Day-Off Scheduler</h1>
+          <p>
+            Builds a season of staff days off that respect your in-camp floor,
+            contracts, and required dates &mdash; entirely in your browser.
+          </p>
+        </div>
+        <div class="badge">
+          Jun 6 &ndash; Aug 20 &middot; no internet needed
+        </div>
+      </header>
 
-  <div class="card">
-    <h2><span class="num">1</span>Camp basics</h2>
-    <div class="row" style="margin-top:14px">
-      <div style="flex:2">
-        <label class="fld">Name of camp</label>
-        <input type="text" id="campName" placeholder="e.g. Sawmill Ridge"/>
+      <div class="card">
+        <h2><span class="num">1</span>Camp basics</h2>
+        <div class="row" style="margin-top: 14px">
+          <div style="flex: 2">
+            <label class="fld">Name of camp</label>
+            <input type="text" id="campName" placeholder="e.g. Sawmill Ridge" />
+          </div>
+          <div>
+            <label class="fld">Season year</label>
+            <input
+              type="number"
+              id="seasonYear"
+              min="2000"
+              max="2100"
+              step="1"
+            />
+          </div>
+          <div>
+            <label class="fld">Scatter day (staff reach camp)</label>
+            <select id="scatterDay"></select>
+          </div>
+          <div>
+            <label class="fld">Does your camp have an ACD?</label>
+            <div class="radio-line" style="padding-top: 7px">
+              <label
+                ><input type="radio" name="hasacd" value="yes" /> Yes</label
+              >
+              <label
+                ><input type="radio" name="hasacd" value="no" checked />
+                No</label
+              >
+            </div>
+          </div>
+          <div>
+            <label class="fld">Minimum % in camp (hard floor)</label>
+            <select id="minPct">
+              <option value="50">50%</option>
+              <option value="60">60%</option>
+              <option value="70">70%</option>
+              <option value="75" selected>75%</option>
+            </select>
+          </div>
+          <div>
+            <label class="fld">Maximize 21+ in camp?</label>
+            <div class="radio-line" style="padding-top: 7px">
+              <label
+                ><input type="checkbox" id="prioritize21" /> Prioritize</label
+              >
+            </div>
+          </div>
+        </div>
+        <p class="footnote">
+          The minimum % is the single most important rule: after scatter day,
+          the calculator never lets in-camp head-count drop below it in any
+          half-day. The season runs May 1 &ndash; Aug 20; before scatter, staff
+          are at training (working days, no in-camp floor yet), and days off
+          there happen only as required must-haves.
+        </p>
       </div>
-      <div>
-        <label class="fld">Does your camp have an ACD?</label>
-        <div class="radio-line" style="padding-top:7px">
-          <label><input type="radio" name="hasacd" value="yes"/> Yes</label>
-          <label><input type="radio" name="hasacd" value="no" checked/> No</label>
+
+      <div class="card">
+        <h2><span class="num">2</span>Staff members</h2>
+        <p class="hint">
+          #1 is always the Camp Director. Check &ldquo;Lock&rdquo; to keep a
+          schedule frozen on recalculate. Each staffer may have up to 3 required
+          days off.
+        </p>
+        <div class="legend" style="margin-bottom: 14px">
+          <span
+            ><span class="sw on"></span>Lock = won&rsquo;t be recalculated</span
+          >
+        </div>
+        <div id="staffList"></div>
+        <button class="btn add" id="addStaff">
+          + Add another staff member
+        </button>
+      </div>
+
+      <div class="card">
+        <div class="actions">
+          <button class="btn primary" id="calcBtn">Calculate schedule</button>
+          <button class="btn ghost hidden" id="recalcBtn">
+            &#8635; Recalculate unlocked
+          </button>
+          <span class="footnote" id="calcNote"></span>
         </div>
       </div>
-      <div>
-        <label class="fld">Minimum % in camp (hard floor)</label>
-        <select id="minPct">
-          <option value="50">50%</option><option value="60">60%</option>
-          <option value="70">70%</option><option value="75" selected>75%</option>
-        </select>
-      </div>
-      <div>
-        <label class="fld">Maximize 21+ in camp?</label>
-        <div class="radio-line" style="padding-top:7px">
-          <label><input type="checkbox" id="prioritize21"/> Prioritize</label>
+
+      <div id="output" class="hidden">
+        <div class="card">
+          <h2><span class="num">3</span>Results</h2>
+          <div id="statusBox"></div>
+          <div class="statcard" id="statCards"></div>
+          <div class="actions" style="margin: 14px 0 18px">
+            <button class="btn primary" id="dlBtn">
+              &#8681; Download spreadsheet (.xlsx)
+            </button>
+            <button class="btn ghost" id="dlCsv">&#8681; CSV instead</button>
+          </div>
+          <div class="legend">
+            <span><span class="sw on"></span>On (working)</span>
+            <span><span class="sw off"></span>Off (day off)</span>
+            <span><span class="sw other"></span>Other (setup / travel)</span>
+            <span><span class="sw clear"></span>Clear (outside contract)</span>
+            <span class="footnote"
+              >Each cell = morning&#9474;afternoon. Day-off sets start at noon
+              and end at noon (hike in/out).</span
+            >
+          </div>
+          <div class="calwrap"><table class="cal" id="calTable"></table></div>
         </div>
       </div>
     </div>
-    <p class="footnote">The minimum % is the single most important rule: the calculator will never let in-camp head-count drop below it in any half-day.</p>
-  </div>
 
-  <div class="card">
-    <h2><span class="num">2</span>Staff members</h2>
-    <p class="hint">#1 is always the Camp Director. Check &ldquo;Lock&rdquo; to keep a schedule frozen on recalculate. Each staffer may have up to 3 required days off.</p>
-    <div class="legend" style="margin-bottom:14px">
-      <span><span class="sw on"></span>Lock = won&rsquo;t be recalculated</span>
-    </div>
-    <div id="staffList"></div>
-    <button class="btn add" id="addStaff">+ Add another staff member</button>
-  </div>
-
-  <div class="card">
-    <div class="actions">
-      <button class="btn primary" id="calcBtn">Calculate schedule</button>
-      <button class="btn ghost hidden" id="recalcBtn">&#8635; Recalculate unlocked</button>
-      <span class="footnote" id="calcNote"></span>
-    </div>
-  </div>
-
-  <div id="output" class="hidden">
-    <div class="card">
-      <h2><span class="num">3</span>Results</h2>
-      <div id="statusBox"></div>
-      <div class="statcard" id="statCards"></div>
-      <div class="actions" style="margin:14px 0 18px">
-        <button class="btn primary" id="dlBtn">&#8681; Download spreadsheet (.xlsx)</button>
-        <button class="btn ghost" id="dlCsv">&#8681; CSV instead</button>
-      </div>
-      <div class="legend">
-        <span><span class="sw on"></span>On (working)</span>
-        <span><span class="sw off"></span>Off (day off)</span>
-        <span><span class="sw other"></span>Other (setup / travel)</span>
-        <span><span class="sw clear"></span>Clear (outside contract)</span>
-        <span class="footnote">Each cell = morning&#9474;afternoon. Day-off sets start at noon and end at noon (hike in/out).</span>
-      </div>
-      <div class="calwrap"><table class="cal" id="calTable"></table></div>
-    </div>
-  </div>
-</div>
-
-<script>
-// === ENGINE (embedded) ===
-/* ============================================================================
+    <script>
+      /* ============================================================================
    CAMP DAY-OFF SCHEDULING ENGINE
    Pure JavaScript. No dependencies. No network. No LLM.
    ----------------------------------------------------------------------------
@@ -229,128 +704,196 @@ table.cal tr.weekstart td,table.cal tr.weekstart th{border-top:2px solid var(--p
    STATE per staffer per slot: 'ON' | 'OFF' | 'OTHER' | 'CLEAR'
    ============================================================================ */
 
-const SEASON_START = '2021-06-06'; // anchor; year is cosmetic, weekday math uses it
-const SEASON_END   = '2021-08-20';
+      /* SEASON WINDOW — single source of truth.
+   The camp always runs the same month/day span (June 6 -> Aug 20); only the
+   YEAR changes per camp. SEASON_START/SEASON_END are derived from the year so
+   actual dates AND weekday labels recompute correctly for any year.
+   Call setSeasonYear(y) before solving. Defaults to the current year.        */
+      const SEASON_MONTH_DAY = { start: "05-01", end: "08-20" };
+      let SEASON_YEAR = new Date().getUTCFullYear();
+      let SEASON_START = SEASON_YEAR + "-" + SEASON_MONTH_DAY.start;
+      let SEASON_END = SEASON_YEAR + "-" + SEASON_MONTH_DAY.end;
+      function setSeasonYear(y) {
+        SEASON_YEAR = y;
+        SEASON_START = y + "-" + SEASON_MONTH_DAY.start;
+        SEASON_END = y + "-" + SEASON_MONTH_DAY.end;
+      }
 
-function parseISO(s){ const [y,m,d]=s.split('-').map(Number); return new Date(Date.UTC(y,m-1,d)); }
-function toISO(dt){ return dt.toISOString().slice(0,10); }
-function addDays(iso,n){ const d=parseISO(iso); d.setUTCDate(d.getUTCDate()+n); return toISO(d); }
-function dayDiff(a,b){ return Math.round((parseISO(b)-parseISO(a))/86400000); }
-function weekdayShort(iso){ return ['SUN','MON','TUES','WED','THU','FRI','SAT'][parseISO(iso).getUTCDay()]; }
-function monthDayLabel(iso){ const d=parseISO(iso); return d.getUTCDate()+'-'+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()]; }
+      function parseISO(s) {
+        const [y, m, d] = s.split("-").map(Number);
+        return new Date(Date.UTC(y, m - 1, d));
+      }
+      function toISO(dt) {
+        return dt.toISOString().slice(0, 10);
+      }
+      function addDays(iso, n) {
+        const d = parseISO(iso);
+        d.setUTCDate(d.getUTCDate() + n);
+        return toISO(d);
+      }
+      function dayDiff(a, b) {
+        return Math.round((parseISO(b) - parseISO(a)) / 86400000);
+      }
+      function weekdayShort(iso) {
+        return ["SUN", "MON", "TUES", "WED", "THU", "FRI", "SAT"][
+          parseISO(iso).getUTCDay()
+        ];
+      }
+      function monthDayLabel(iso) {
+        const d = parseISO(iso);
+        return (
+          d.getUTCDate() +
+          "-" +
+          [
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "May",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Oct",
+            "Nov",
+            "Dec",
+          ][d.getUTCMonth()]
+        );
+      }
 
-// Build the list of season dates we actually schedule on.
-function seasonDates(){
-  const out=[]; let cur=SEASON_START;
-  while(dayDiff(cur,SEASON_END)>=0){ out.push(cur); cur=addDays(cur,1); }
-  return out;
-}
+      // Build the list of season dates we actually schedule on.
+      function seasonDates() {
+        const out = [];
+        let cur = SEASON_START;
+        while (dayDiff(cur, SEASON_END) >= 0) {
+          out.push(cur);
+          cur = addDays(cur, 1);
+        }
+        return out;
+      }
 
-// contractDays = inclusive day count between start and end
-function contractDays(startISO,endISO){ return dayDiff(startISO,endISO)+1; }
+      // contractDays = inclusive day count between start and end
+      function contractDays(startISO, endISO) {
+        return dayDiff(startISO, endISO) + 1;
+      }
 
-/* ---------------------------------------------------------------------------
+      /* ---------------------------------------------------------------------------
    A staffer's schedule is stored as a Map<dateISO, {am,pm}>.
    We only fill dates inside [max(start,SEASON_START) .. min(end,SEASON_END)].
    Outside contract -> CLEAR. Before season but in contract -> OTHER (setup).
 --------------------------------------------------------------------------- */
 
-function blankSchedule(staff, dates){
-  const sched={};
-  for(const d of dates){
-    let state='CLEAR';
-    const inContract = dayDiff(staff.start,d)>=0 && dayDiff(d,staff.end)>=0;
-    if(inContract) state='ON';
-    sched[d]={am:state, pm:state};
-  }
-  return sched;
-}
+      function blankSchedule(staff, dates) {
+        const sched = {};
+        for (const d of dates) {
+          let state = "CLEAR";
+          const inContract =
+            dayDiff(staff.start, d) >= 0 && dayDiff(d, staff.end) >= 0;
+          if (inContract) state = "ON";
+          sched[d] = { am: state, pm: state };
+        }
+        return sched;
+      }
 
-/* Apply one day-off SET. fullOffDays = number of full OFF calendar days.
+      /* Apply one day-off SET. fullOffDays = number of full OFF calendar days.
    Returns {ok, creditedDaysOff} or {ok:false} if it would violate a hard rule
    given the precomputed slot occupancy (checked by caller).            */
-function applyOffSet(sched, departISO, fullOffDays){
-  // departISO = first day where PM goes OFF (AM stays ON: half working day).
-  // full off days follow; then return day AM OFF / PM ON.
-  const returnISO = addDays(departISO, fullOffDays+1);
-  if(!sched[departISO] || !sched[returnISO]) return false; // out of range
-  sched[departISO].pm='OFF';
-  for(let i=1;i<=fullOffDays;i++){
-    const d=addDays(departISO,i);
-    if(!sched[d]) return false;
-    sched[d].am='OFF'; sched[d].pm='OFF';
-  }
-  sched[returnISO].am='OFF';
-  return true;
-}
+      function applyOffSet(sched, departISO, fullOffDays) {
+        // departISO = first day where PM goes OFF (AM stays ON: half working day).
+        // full off days follow; then return day AM OFF / PM ON.
+        const returnISO = addDays(departISO, fullOffDays + 1);
+        if (!sched[departISO] || !sched[returnISO]) return false; // out of range
+        sched[departISO].pm = "OFF";
+        for (let i = 1; i <= fullOffDays; i++) {
+          const d = addDays(departISO, i);
+          if (!sched[d]) return false;
+          sched[d].am = "OFF";
+          sched[d].pm = "OFF";
+        }
+        sched[returnISO].am = "OFF";
+        return true;
+      }
 
-// Count credited days off (each OFF half-slot = 0.5) within contract.
-function countDaysOff(sched){
-  let off=0;
-  for(const d in sched){
-    if(sched[d].am==='OFF') off+=0.5;
-    if(sched[d].pm==='OFF') off+=0.5;
-  }
-  return off;
-}
-function countWorkingDays(sched){
-  let on=0;
-  for(const d in sched){
-    if(sched[d].am==='ON') on+=0.5;
-    if(sched[d].pm==='ON') on+=0.5;
-  }
-  return on;
-}
+      // Count credited days off (each OFF half-slot = 0.5) within contract.
+      function countDaysOff(sched) {
+        let off = 0;
+        for (const d in sched) {
+          if (sched[d].am === "OFF") off += 0.5;
+          if (sched[d].pm === "OFF") off += 0.5;
+        }
+        return off;
+      }
+      function countWorkingDays(sched) {
+        let on = 0;
+        for (const d in sched) {
+          if (sched[d].am === "ON") on += 0.5;
+          if (sched[d].pm === "ON") on += 0.5;
+        }
+        return on;
+      }
 
-/* ---------------------------------------------------------------------------
+      /* ---------------------------------------------------------------------------
    GLOBAL OCCUPANCY: for each date+slot, how many staff are ON / total active.
    active = staff whose contract covers that date (state not CLEAR/OTHER).
 --------------------------------------------------------------------------- */
-function buildOccupancy(schedules, dates){
-  const occ={}; // date -> {amOn,amActive,pmOn,pmActive}
-  for(const d of dates) occ[d]={amOn:0,amActive:0,pmOn:0,pmActive:0};
-  for(const sid in schedules){
-    const s=schedules[sid];
-    for(const d of dates){
-      const slot=s[d]; if(!slot) continue;
-      if(slot.am==='ON'){occ[d].amOn++;occ[d].amActive++;}
-      else if(slot.am==='OFF'){occ[d].amActive++;}
-      if(slot.pm==='ON'){occ[d].pmOn++;occ[d].pmActive++;}
-      else if(slot.pm==='OFF'){occ[d].pmActive++;}
-    }
-  }
-  return occ;
-}
+      function buildOccupancy(schedules, dates) {
+        const occ = {}; // date -> {amOn,amActive,pmOn,pmActive}
+        for (const d of dates)
+          occ[d] = { amOn: 0, amActive: 0, pmOn: 0, pmActive: 0 };
+        for (const sid in schedules) {
+          const s = schedules[sid];
+          for (const d of dates) {
+            const slot = s[d];
+            if (!slot) continue;
+            if (slot.am === "ON") {
+              occ[d].amOn++;
+              occ[d].amActive++;
+            } else if (slot.am === "OFF") {
+              occ[d].amActive++;
+            }
+            if (slot.pm === "ON") {
+              occ[d].pmOn++;
+              occ[d].pmActive++;
+            } else if (slot.pm === "OFF") {
+              occ[d].pmActive++;
+            }
+          }
+        }
+        return occ;
+      }
 
-/* Would removing `staffSched` from camp on the off-set [depart..return]
-   keep every affected slot at/above the floor?  floorCount is an absolute
-   head count (computed from % * totalStaff, rounded up).               */
-function offSetRespectsFloor(occ, departISO, fullOffDays, floorCount){
-  // departing staffer is ON in AM (no change), OFF in PM of depart day,
-  // OFF both slots of full days, OFF in AM of return day.
-  const check=(date,slot)=>{
-    const o=occ[date]; if(!o) return false;
-    const on = slot==='am'? o.amOn : o.pmOn;
-    return (on-1) >= floorCount; // -1 because this staffer leaves that slot
-  };
-  if(!check(departISO,'pm')) return false;
-  for(let i=1;i<=fullOffDays;i++){
-    const d=addDays(departISO,i);
-    if(!check(d,'am')||!check(d,'pm')) return false;
-  }
-  if(!check(addDays(departISO,fullOffDays+1),'am')) return false;
-  return true;
-}
+      /* Would removing `staffSched` from camp on the off-set [depart..return]
+   keep every affected slot at/above the floor?  `FL` is a function
+   date -> required head count that day (the dynamic floor).             */
+      function offSetRespectsFloor(occ, departISO, fullOffDays, FL) {
+        // departing staffer is ON in AM (no change), OFF in PM of depart day,
+        // OFF both slots of full days, OFF in AM of return day.
+        const check = (date, slot) => {
+          const o = occ[date];
+          if (!o) return false;
+          const on = slot === "am" ? o.amOn : o.pmOn;
+          return on - 1 >= FL(date); // -1 because this staffer leaves that slot
+        };
+        if (!check(departISO, "pm")) return false;
+        for (let i = 1; i <= fullOffDays; i++) {
+          const d = addDays(departISO, i);
+          if (!check(d, "am") || !check(d, "pm")) return false;
+        }
+        if (!check(addDays(departISO, fullOffDays + 1), "am")) return false;
+        return true;
+      }
 
-function commitOffSetToOcc(occ, departISO, fullOffDays){
-  occ[departISO].pmOn--;
-  for(let i=1;i<=fullOffDays;i++){
-    const d=addDays(departISO,i); occ[d].amOn--; occ[d].pmOn--;
-  }
-  occ[addDays(departISO,fullOffDays+1)].amOn--;
-}
+      function commitOffSetToOcc(occ, departISO, fullOffDays) {
+        occ[departISO].pmOn--;
+        for (let i = 1; i <= fullOffDays; i++) {
+          const d = addDays(departISO, i);
+          occ[d].amOn--;
+          occ[d].pmOn--;
+        }
+        occ[addDays(departISO, fullOffDays + 1)].amOn--;
+      }
 
-/* ===========================================================================
+      /* ===========================================================================
    MAIN SOLVER
    inputs: {
      staff: [{id,name,role,is21,start,end,required:[iso],preferred:[iso],locked,
@@ -361,530 +904,1263 @@ function commitOffSetToOcc(occ, departISO, fullOffDays){
    }
    Returns { schedules, dates, occupancy, report }
 =========================================================================== */
-function solve(input, seed){
-  const rng = mulberry32(seed>>>0);
-  const dates = seasonDates();
-  const N = input.staff.length;
-  const floorCount = Math.ceil((input.minPct/100)*N);
+      function solve(input, seed) {
+        const rng = mulberry32(seed >>> 0);
+        if (input.year) setSeasonYear(input.year); // season dates derive from this
+        const dates = seasonDates();
 
-  const schedules={};
-  // 1) seed locked staff with their fixed schedule; others blank (all ON).
-  for(const st of input.staff){
-    if(st.locked && st.lockedSchedule){ schedules[st.id]=deepClone(st.lockedSchedule); }
-    else schedules[st.id]=blankSchedule(st, dates);
-  }
+        /* SCATTER DAY.
+     Staff train at a central site, then "scatter" to their camps. Before
+     scatter there is no camp to staff, so the in-camp % floor does NOT apply.
+     After scatter it applies normally. Pre-scatter days still count toward
+     contract days (raising the 25%-off target) and are working days ("On").
+     Default scatter = June 6 of the season year.                            */
+        const scatterISO = input.scatter || SEASON_YEAR + "-06-06";
+        const earliestRhythmOff = addDays(scatterISO, 2); // 2-day settling buffer
+        const isPreScatter = (d) => dayDiff(d, scatterISO) > 0; // strictly before scatter
+        const inBufferOrTraining = (d) => dayDiff(d, earliestRhythmOff) > 0; // before scatter+2
+        // SOFT no-off zone (training + buffer): rhythm/preferred avoid it; required may override.
+        const noRhythmOff = (d) => inBufferOrTraining(d);
 
-  // Enforce: last 3 calendar days of each contract (within season) are WORKING.
-  const protectedOn={};
-  for(const st of input.staff){
-    protectedOn[st.id]=new Set();
-    const lastDay = minISO(st.end, SEASON_END);     // last scheduled working day
-    if(dayDiff(SEASON_START,lastDay)>=0){
-      for(let i=0;i<3;i++){
-        const d=addDays(lastDay,-i);
-        if(dayDiff(SEASON_START,d)>=0) protectedOn[st.id].add(d);
-      }
-    }
-  }
+        /* DYNAMIC FLOOR.
+     The in-camp floor is "minPct% of the people physically attached to camp."
+     As contracts end mid-season the roster shrinks, so the denominator must
+     shrink with it: floor on a given day = ceil(minPct% * (# staff whose
+     contract covers that day)). This is computed from contract spans alone,
+     independent of who is scheduled off, so it is a stable target.
+     floorByDate[d]   -> required head count in camp that day
+     underContract[d] -> how many bodies exist that day (the denominator)      */
+        const floorByDate = {},
+          underContract = {};
+        for (const d of dates) {
+          let n = 0;
+          for (const st of input.staff) {
+            if (dayDiff(st.start, d) >= 0 && dayDiff(d, st.end) >= 0) n++;
+          }
+          underContract[d] = n;
+          floorByDate[d] = isPreScatter(d)
+            ? 0
+            : Math.ceil((input.minPct / 100) * n);
+        }
+        // convenience: floor lookup that tolerates unknown dates
+        const FL = (d) => (floorByDate[d] !== undefined ? floorByDate[d] : 0);
 
-  let occ=buildOccupancy(schedules,dates);
+        const schedules = {};
+        // 1) seed locked staff with their fixed schedule; others blank (all ON).
+        for (const st of input.staff) {
+          if (st.locked && st.lockedSchedule) {
+            schedules[st.id] = deepClone(st.lockedSchedule);
+          } else schedules[st.id] = blankSchedule(st, dates);
+        }
 
-  const toSchedule = input.staff.filter(s=>!s.locked);
-  const report={warnings:[],perStaff:{}};
+        // Enforce: last 3 calendar days of each contract (within season) are WORKING.
+        const protectedOn = {};
+        for (const st of input.staff) {
+          protectedOn[st.id] = new Set();
+          const lastDay = minISO(st.end, SEASON_END); // last scheduled working day
+          if (dayDiff(SEASON_START, lastDay) >= 0) {
+            for (let i = 0; i < 3; i++) {
+              const d = addDays(lastDay, -i);
+              if (dayDiff(SEASON_START, d) >= 0) protectedOn[st.id].add(d);
+            }
+          }
+        }
 
-  // Compute each staffer's day-off TARGET (~25%) and HARD MAX (>=74% working).
-  for(const st of input.staff){
-    const cdc=contractDays(maxISO(st.start,SEASON_START), minISO(st.end,SEASON_END));
-    st._cd=cdc;
-    st._targetOff = cdc*0.25;
-    st._maxOff = Math.max(0, cdc - Math.ceil(cdc*0.74));
-    st._minOff = Math.ceil(cdc*0.25 - 1e-9);
-  }
+        let occ = buildOccupancy(schedules, dates);
 
-  // Place REQUIRED days off first (priority 2) for each unlocked staffer.
-  for(const st of toSchedule){
-    report.perStaff[st.id]={requiredMet:0,requiredTotal:st.required.length,preferredMet:0,preferredTotal:st.preferred.length};
-    for(const reqISO of st.required){
-      if(dayDiff(SEASON_START,reqISO)<0||dayDiff(reqISO,SEASON_END)<0) continue;
-      const depart=addDays(reqISO,-1);
-      const placed = tryPlace(schedules[st.id],occ,st,depart,1,floorCount,protectedOn[st.id]);
-      if(placed) report.perStaff[st.id].requiredMet++;
-      else if(schedules[st.id][reqISO] && !protectedOn[st.id].has(reqISO) && occ[reqISO].pmOn-1>=floorCount){
-        schedules[st.id][reqISO].pm='OFF'; occ[reqISO].pmOn--; report.perStaff[st.id].requiredMet++;
-      } else {
-        report.warnings.push(`Could not honor required day off ${reqISO} for ${st.name} (would breach in-camp floor).`);
-      }
-    }
-  }
+        const toSchedule = input.staff.filter((s) => !s.locked);
+        const report = { warnings: [], perStaff: {} };
 
-  // CD/ACD exclusion windows: track when CD is off so ACD never overlaps.
-  const cd = input.staff[0];
-  const acd = input.hasACD? input.staff[1] : null;
+        // Compute each staffer's day-off TARGET (~25%) and HARD MAX (>=74% working).
+        for (const st of input.staff) {
+          const cdc = contractDays(
+            maxISO(st.start, SEASON_START),
+            minISO(st.end, SEASON_END)
+          );
+          st._cd = cdc;
+          st._targetOff = cdc * 0.25;
+          st._maxOff = Math.max(0, cdc - Math.ceil(cdc * 0.74));
+          st._minOff = Math.ceil(cdc * 0.25 - 1e-9);
+        }
 
+        // Place REQUIRED days off first (priority 2) for each unlocked staffer.
+        for (const st of toSchedule) {
+          report.perStaff[st.id] = {
+            requiredMet: 0,
+            requiredTotal: st.required.length,
+            preferredMet: 0,
+            preferredTotal: st.preferred.length,
+          };
+          for (const reqISO of st.required) {
+            if (
+              dayDiff(SEASON_START, reqISO) < 0 ||
+              dayDiff(reqISO, SEASON_END) < 0
+            )
+              continue;
+            const depart = addDays(reqISO, -1);
+            const placed = tryPlace(
+              schedules[st.id],
+              occ,
+              st,
+              depart,
+              1,
+              FL,
+              protectedOn[st.id]
+            );
+            if (placed) report.perStaff[st.id].requiredMet++;
+            else if (
+              schedules[st.id][reqISO] &&
+              !protectedOn[st.id].has(reqISO) &&
+              occ[reqISO].pmOn - 1 >= FL(reqISO)
+            ) {
+              schedules[st.id][reqISO].pm = "OFF";
+              occ[reqISO].pmOn--;
+              report.perStaff[st.id].requiredMet++;
+            } else {
+              report.warnings.push(
+                `Could not honor required day off ${reqISO} for ${st.name} (would breach in-camp floor).`
+              );
+            }
+          }
+        }
 
-  /* Target-driven balanced placement.
+        // CD/ACD exclusion windows: track when CD is off so ACD never overlaps.
+        const cd = input.staff[0];
+        const acd = input.hasACD ? input.staff[1] : null;
+
+        /* Target-driven balanced placement.
      We repeatedly pick the staffer FURTHEST below their 25% target (fairness:
      whoever has sacrificed the most days off so far gets served first), and
      try to lay their next off-set after a ~9-day working streak. We keep going
      until everyone is at/above target or no more legal sets can be placed. */
-  const cdSched = schedules[cd.id];
-  let progress=true, guard=0;
-  // Phase A: bring everyone toward 25% target (fairness-ordered).
-  // Phase B: if floor still allows, keep filling up to the 26% cap.
-  for(const phase of ['target','cap']){
-    progress=true; guard=0;
-    while(progress && guard++ < 4000){
-      progress=false;
-      const limitFn = phase==='target'
-        ? (st)=> st._targetOff - 0.5
-        : (st)=> st._maxOff;
-      const ranked=[...toSchedule].map(st=>({st,
-          ratio: countDaysOff(schedules[st.id]) / Math.max(0.0001,st._targetOff),
-          r: rng()
-        })).filter(x=>countDaysOff(schedules[x.st.id]) < limitFn(x.st))
-          .sort((a,b)=> (a.ratio-b.ratio)||(a.r-b.r));
-      for(const {st} of ranked){
-        const isACD = acd && st.id===acd.id;
-        const placed = placeNextSet(schedules[st.id],occ,st,floorCount,protectedOn[st.id],{
-          isACD, cdSched: isACD?cdSched:null, acdSched: (acd && st.id===cd.id)?schedules[acd.id]:null,
-          dates, rng, minStreak: phase==='target'?7:5
-        });
-        if(placed) progress=true;
+        const cdSched = schedules[cd.id];
+        let progress = true,
+          guard = 0;
+        // Phase A: bring everyone toward 25% target (fairness-ordered).
+        // Phase B: if floor still allows, keep filling up to the 26% cap.
+        for (const phase of ["target", "cap"]) {
+          progress = true;
+          guard = 0;
+          while (progress && guard++ < 4000) {
+            progress = false;
+            const limitFn =
+              phase === "target"
+                ? (st) => st._targetOff - 0.5
+                : (st) => st._maxOff;
+            const ranked = [...toSchedule]
+              .map((st) => ({
+                st,
+                ratio:
+                  countDaysOff(schedules[st.id]) /
+                  Math.max(0.0001, st._targetOff),
+                r: rng(),
+              }))
+              .filter((x) => countDaysOff(schedules[x.st.id]) < limitFn(x.st))
+              .sort((a, b) => a.ratio - b.ratio || a.r - b.r);
+            for (const { st } of ranked) {
+              const isACD = acd && st.id === acd.id;
+              const placed = placeNextSet(
+                schedules[st.id],
+                occ,
+                st,
+                FL,
+                protectedOn[st.id],
+                {
+                  isACD,
+                  cdSched: isACD ? cdSched : null,
+                  acdSched: acd && st.id === cd.id ? schedules[acd.id] : null,
+                  dates,
+                  rng,
+                  minStreak: phase === "target" ? 7 : 5,
+                  noRhythmOff,
+                }
+              );
+              if (placed) progress = true;
+            }
+          }
+        }
+
+        // 4) PREFERRED days off (priority 4) — try to nudge if slack remains.
+        for (const st of toSchedule) {
+          for (const prefISO of st.preferred) {
+            if (
+              dayDiff(SEASON_START, prefISO) < 0 ||
+              dayDiff(prefISO, SEASON_END) < 0
+            )
+              continue;
+            if (noRhythmOff(prefISO)) continue; // preferred days can't land in training/buffer
+            if (countDaysOff(schedules[st.id]) >= st._maxOff) break;
+            if (
+              schedules[st.id][prefISO] &&
+              schedules[st.id][prefISO].pm === "ON" &&
+              !protectedOn[st.id].has(prefISO) &&
+              occ[prefISO].pmOn - 1 >= FL(prefISO)
+            ) {
+              schedules[st.id][prefISO].pm = "OFF";
+              occ[prefISO].pmOn--;
+              report.perStaff[st.id].preferredMet++;
+            }
+          }
+        }
+
+        // 5) Out-of-contract days -> CLEAR. In-contract days keep their state
+        //    (ON, or OFF where a day-off set was placed). Pre-scatter training days
+        //    are in-contract and not off, so they remain ON (training = work).
+        for (const st of input.staff) {
+          for (const d of dates) {
+            const inContract =
+              dayDiff(st.start, d) >= 0 && dayDiff(d, st.end) >= 0;
+            if (!inContract) {
+              schedules[st.id][d] = { am: "CLEAR", pm: "CLEAR" };
+            }
+          }
+        }
+
+        occ = buildOccupancy(schedules, dates);
+        // Final validation pass
+        validate(
+          input,
+          schedules,
+          dates,
+          occ,
+          floorByDate,
+          underContract,
+          report,
+          protectedOn
+        );
+
+        return {
+          schedules,
+          dates,
+          occupancy: occ,
+          floorByDate,
+          underContract,
+          minPct: input.minPct,
+          year: SEASON_YEAR,
+          seasonStart: SEASON_START,
+          seasonEnd: SEASON_END,
+          scatter: scatterISO,
+          report,
+        };
       }
-    }
-  }
 
-  // 4) PREFERRED days off (priority 4) — try to nudge if slack remains.
-  for(const st of toSchedule){
-    for(const prefISO of st.preferred){
-      if(dayDiff(SEASON_START,prefISO)<0||dayDiff(prefISO,SEASON_END)<0) continue;
-      if(countDaysOff(schedules[st.id]) >= st._maxOff) break;
-      if(schedules[st.id][prefISO] && schedules[st.id][prefISO].pm==='ON'
-         && !protectedOn[st.id].has(prefISO) && occ[prefISO].pmOn-1>=floorCount){
-        schedules[st.id][prefISO].pm='OFF'; occ[prefISO].pmOn--;
-        report.perStaff[st.id].preferredMet++;
-      }
-    }
-  }
-
-  // 5) Mark pre-contract season days as OTHER (camp setup) and post as CLEAR.
-  for(const st of input.staff){
-    for(const d of dates){
-      const inContract = dayDiff(st.start,d)>=0 && dayDiff(d,st.end)>=0;
-      if(!inContract){ schedules[st.id][d]={am:'CLEAR',pm:'CLEAR'}; }
-    }
-  }
-
-  occ=buildOccupancy(schedules,dates);
-  // Final validation pass
-  validate(input,schedules,dates,occ,floorCount,report,protectedOn);
-
-  return {schedules,dates,occupancy:occ,floorCount,report};
-}
-
-/* tryPlace: attempt an off-set; commit to both sched and occ if it passes
+      /* tryPlace: attempt an off-set; commit to both sched and occ if it passes
    floor + protected-days + ACD/CD checks. Returns bool. */
-function tryPlace(sched,occ,st,departISO,fullOffDays,floorCount,protectedSet,extra){
-  const returnISO=addDays(departISO,fullOffDays+1);
-  if(!sched[departISO]||!sched[returnISO]) return false;
-  // protected last-3-working days must stay ON
-  const touch=[ [departISO,'pm'] ];
-  for(let i=1;i<=fullOffDays;i++){ const d=addDays(departISO,i); touch.push([d,'am'],[d,'pm']); }
-  touch.push([returnISO,'am']);
-  for(const [d,slot] of touch){
-    if(protectedSet.has(d)) return false;
-    if(!sched[d]||sched[d][slot]!=='ON') return false; // already off / clear
-  }
-  if(!offSetRespectsFloor(occ,departISO,fullOffDays,floorCount)) return false;
-  // ACD/CD mutual exclusion
-  if(extra && extra.cdSched && extra.isACD){
-    for(const [d,slot] of touch){ if(extra.cdSched[d] && extra.cdSched[d][slot]==='OFF') return false; }
-  }
-  if(extra && extra.acd && !extra.isACD && st && extra.cdSelf){
-    // when placing CD, ensure ACD not off there (checked elsewhere)
-  }
-  applyOffSet(sched,departISO,fullOffDays);
-  commitOffSetToOcc(occ,departISO,fullOffDays);
-  return true;
-}
+      function tryPlace(
+        sched,
+        occ,
+        st,
+        departISO,
+        fullOffDays,
+        FL,
+        protectedSet,
+        extra
+      ) {
+        const returnISO = addDays(departISO, fullOffDays + 1);
+        if (!sched[departISO] || !sched[returnISO]) return false;
+        // protected last-3-working days must stay ON
+        const touch = [[departISO, "pm"]];
+        for (let i = 1; i <= fullOffDays; i++) {
+          const d = addDays(departISO, i);
+          touch.push([d, "am"], [d, "pm"]);
+        }
+        touch.push([returnISO, "am"]);
+        for (const [d, slot] of touch) {
+          if (protectedSet.has(d)) return false;
+          if (!sched[d] || sched[d][slot] !== "ON") return false; // already off / clear
+        }
+        if (!offSetRespectsFloor(occ, departISO, fullOffDays, FL)) return false;
+        // ACD/CD mutual exclusion
+        if (extra && extra.cdSched && extra.isACD) {
+          for (const [d, slot] of touch) {
+            if (extra.cdSched[d] && extra.cdSched[d][slot] === "OFF")
+              return false;
+          }
+        }
+        if (extra && extra.acd && !extra.isACD && st && extra.cdSelf) {
+          // when placing CD, ensure ACD not off there (checked elsewhere)
+        }
+        applyOffSet(sched, departISO, fullOffDays);
+        commitOffSetToOcc(occ, departISO, fullOffDays);
+        return true;
+      }
 
-/* placeNextSet: lay ONE off-set for this staffer in the best legal spot.
+      /* placeNextSet: lay ONE off-set for this staffer in the best legal spot.
    Strategy: scan the season, track current ON streak, and at the first point
    the streak reaches the ideal (>=9 days since last off, or season start),
    try a 3-day set then 2-day fallback. Among all legal candidate start days,
    prefer the one closest to the 9-on rhythm and to a preferred date. */
-function placeNextSet(sched,occ,st,floorCount,protectedSet,extra){
-  const dates=extra.dates, isACD=extra.isACD;
-  const minStreak=extra.minStreak||7;
-  if(countDaysOff(sched) >= st._maxOff) return false;
-  let firstIdx=dates.findIndex(d=>sched[d]&&sched[d].am!=='CLEAR');
-  let lastIdx=-1; for(let i=dates.length-1;i>=0;i--){ if(sched[dates[i]]&&sched[dates[i]].am!=='CLEAR'){lastIdx=i;break;} }
-  if(firstIdx<0) return false;
-
-  // Build streak map: days since previous OFF slot.
-  const candidates=[];
-  let streak=0;
-  for(let i=firstIdx;i<=lastIdx;i++){
-    const d=dates[i];
-    if(!sched[d]||sched[d].am==='CLEAR') {streak=0; continue;}
-    if(sched[d].am==='OFF'||sched[d].pm==='OFF'){streak=0; continue;}
-    streak++;
-    // candidate departure = this day if we've built up enough streak
-    if(streak>=minStreak){
-      // score: distance from ideal 9-on (prefer 9, accept 7-12); add preferred bonus
-      const idealPenalty=Math.abs(streak-9);
-      const prefBonus = st.preferred && st.preferred.some(p=>Math.abs(dayDiff(p,d))<=2)? -3:0;
-      candidates.push({d,score:idealPenalty+prefBonus});
-    }
-  }
-  candidates.sort((a,b)=> (a.score-b.score)||(extra.rng()-0.5));
-  const curOff=countDaysOff(sched);
-  for(const c of candidates){
-    for(const len of [3,2]){
-      const setCost = len + 1.0; // full days + two half days
-      if(curOff + setCost > st._maxOff + 1e-9) continue; // would exceed cap
-      if(tryPlace(sched,occ,st,c.d,len,floorCount,protectedSet,{isACD,cdSched:extra.cdSched})){
-        // also guard CD-placing-against-ACD direction
-        if(extra.acdSched){
-          const touch=offSetSlots(c.d,len);
-          let conflict=touch.some(([dd,sl])=>extra.acdSched[dd]&&extra.acdSched[dd][sl]==='OFF');
-          if(conflict){ undoPlace(sched,occ,c.d,len); continue; }
+      function placeNextSet(sched, occ, st, FL, protectedSet, extra) {
+        const dates = extra.dates,
+          isACD = extra.isACD;
+        const minStreak = extra.minStreak || 7;
+        if (countDaysOff(sched) >= st._maxOff) return false;
+        let firstIdx = dates.findIndex(
+          (d) => sched[d] && sched[d].am !== "CLEAR"
+        );
+        let lastIdx = -1;
+        for (let i = dates.length - 1; i >= 0; i--) {
+          if (sched[dates[i]] && sched[dates[i]].am !== "CLEAR") {
+            lastIdx = i;
+            break;
+          }
         }
-        return true;
+        if (firstIdx < 0) return false;
+
+        // Build streak map: days since previous OFF slot.
+        const candidates = [];
+        let streak = 0;
+        for (let i = firstIdx; i <= lastIdx; i++) {
+          const d = dates[i];
+          if (!sched[d] || sched[d].am === "CLEAR") {
+            streak = 0;
+            continue;
+          }
+          if (sched[d].am === "OFF" || sched[d].pm === "OFF") {
+            streak = 0;
+            continue;
+          }
+          streak++;
+          // candidate departure = this day if we've built up enough streak
+          if (streak >= minStreak) {
+            // score: distance from ideal 9-on (prefer 9, accept 7-12); add preferred bonus
+            const idealPenalty = Math.abs(streak - 9);
+            const prefBonus =
+              st.preferred &&
+              st.preferred.some((p) => Math.abs(dayDiff(p, d)) <= 2)
+                ? -3
+                : 0;
+            candidates.push({ d, score: idealPenalty + prefBonus });
+          }
+        }
+        candidates.sort((a, b) => a.score - b.score || extra.rng() - 0.5);
+        const curOff = countDaysOff(sched);
+        const noOff = extra.noRhythmOff || (() => false);
+        for (const c of candidates) {
+          for (const len of [3, 2]) {
+            const setCost = len + 1.0; // full days + two half days
+            if (curOff + setCost > st._maxOff + 1e-9) continue; // would exceed cap
+            // training period + post-scatter buffer: no rhythm/preferred sets may
+            // touch this zone (required days off are placed elsewhere and exempt).
+            const slots = offSetSlots(c.d, len);
+            if (slots.some(([dd]) => noOff(dd))) continue;
+            if (
+              tryPlace(sched, occ, st, c.d, len, FL, protectedSet, {
+                isACD,
+                cdSched: extra.cdSched,
+              })
+            ) {
+              // also guard CD-placing-against-ACD direction
+              if (extra.acdSched) {
+                const touch = offSetSlots(c.d, len);
+                let conflict = touch.some(
+                  ([dd, sl]) =>
+                    extra.acdSched[dd] && extra.acdSched[dd][sl] === "OFF"
+                );
+                if (conflict) {
+                  undoPlace(sched, occ, c.d, len);
+                  continue;
+                }
+              }
+              return true;
+            }
+          }
+        }
+        return false;
       }
-    }
-  }
-  return false;
-}
-function offSetSlots(departISO,len){
-  const t=[[departISO,'pm']];
-  for(let i=1;i<=len;i++){const d=addDays(departISO,i);t.push([d,'am'],[d,'pm']);}
-  t.push([addDays(departISO,len+1),'am']); return t;
-}
-function undoPlace(sched,occ,departISO,len){
-  sched[departISO].pm='ON'; occ[departISO].pmOn++;
-  for(let i=1;i<=len;i++){const d=addDays(departISO,i);sched[d].am='ON';sched[d].pm='ON';occ[d].amOn++;occ[d].pmOn++;}
-  const r=addDays(departISO,len+1); sched[r].am='ON'; occ[r].amOn++;
-}
-
-function orderForFairness(list,rng,prioritize21){
-  const arr=[...list];
-  // shuffle then stable-sort by tightness so restarts explore alternatives
-  for(let i=arr.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}
-  return arr;
-}
-
-function validate(input,schedules,dates,occ,floorCount,report,protectedOn){
-  // floor check per slot
-  for(const d of dates){
-    const o=occ[d];
-    if(o.amActive>0 && o.amOn<floorCount) report.warnings.push(`Below floor (${o.amOn}/${floorCount}) AM ${d}.`);
-    if(o.pmActive>0 && o.pmOn<floorCount) report.warnings.push(`Below floor (${o.pmOn}/${floorCount}) PM ${d}.`);
-  }
-  // ACD/CD overlap
-  if(input.hasACD){
-    const cd=schedules[input.staff[0].id], acd=schedules[input.staff[1].id];
-    for(const d of dates){
-      if(cd[d]&&acd[d]){
-        if((cd[d].am==='OFF'&&acd[d].am==='OFF')||(cd[d].pm==='OFF'&&acd[d].pm==='OFF'))
-          report.warnings.push(`CD and ACD both off ${d}.`);
+      function offSetSlots(departISO, len) {
+        const t = [[departISO, "pm"]];
+        for (let i = 1; i <= len; i++) {
+          const d = addDays(departISO, i);
+          t.push([d, "am"], [d, "pm"]);
+        }
+        t.push([addDays(departISO, len + 1), "am"]);
+        return t;
       }
-    }
-  }
-  // ratio + last-3-working
-  for(const st of input.staff){
-    const s=schedules[st.id];
-    const off=countDaysOff(s), on=countWorkingDays(s), cd=off+on;
-    report.perStaff[st.id]=report.perStaff[st.id]||{};
-    Object.assign(report.perStaff[st.id],{daysOff:off,daysOn:on,contractDays:cd,
-      doPct: cd? Math.round(off/cd*100):0});
-    const maxOff = Math.max(0, cd - Math.ceil(cd*0.74));
-    if(cd>0 && off> maxOff) report.warnings.push(`${st.name} exceeds days-off cap (${off}/${cd}, keep \u226574% working).`);
-    for(const pd of protectedOn[st.id]){ if(s[pd] && (s[pd].am==='OFF'||s[pd].pm==='OFF')) report.warnings.push(`${st.name} is off during protected last-3 day ${pd}.`); }
-  }
-}
+      function undoPlace(sched, occ, departISO, len) {
+        sched[departISO].pm = "ON";
+        occ[departISO].pmOn++;
+        for (let i = 1; i <= len; i++) {
+          const d = addDays(departISO, i);
+          sched[d].am = "ON";
+          sched[d].pm = "ON";
+          occ[d].amOn++;
+          occ[d].pmOn++;
+        }
+        const r = addDays(departISO, len + 1);
+        sched[r].am = "ON";
+        occ[r].amOn++;
+      }
 
-// utils
-function deepClone(o){return JSON.parse(JSON.stringify(o));}
-function maxISO(a,b){return dayDiff(a,b)>=0?b:a;} // later of the two dates
-function minISO(a,b){return dayDiff(a,b)>=0?a:b;} // earlier of the two dates
-function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+      function orderForFairness(list, rng, prioritize21) {
+        const arr = [...list];
+        // shuffle then stable-sort by tightness so restarts explore alternatives
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(rng() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+      }
 
-/* Multi-restart wrapper: run solve several times, keep the best by a weighted
+      function validate(
+        input,
+        schedules,
+        dates,
+        occ,
+        floorByDate,
+        underContract,
+        report,
+        protectedOn
+      ) {
+        const FL = (d) => (floorByDate[d] !== undefined ? floorByDate[d] : 0);
+        report.infeasibleDays = []; // days where even everyone-in-camp can't meet the floor
+        report.breachDays = []; // days the solver dropped below an achievable floor (should be empty)
+
+        for (const d of dates) {
+          const o = occ[d];
+          const need = FL(d);
+          const bodies = underContract[d]; // how many people exist that day
+          if (bodies === 0) continue; // nobody under contract: nothing to staff
+          // INFEASIBLE: floor exceeds the bodies that physically exist that day.
+          // (Can only happen via rounding, e.g. need=ceil(0.6*1)=1 is fine; this guards edge cases.)
+          if (need > bodies) {
+            report.infeasibleDays.push({ date: d, bodies, need });
+            continue; // not a solver failure; an input problem
+          }
+          // For each slot: if on-count < need AND there were enough bodies to meet it,
+          // that's a genuine breach the solver should never produce.
+          if (o.amActive > 0 && o.amOn < need)
+            report.breachDays.push({
+              date: d,
+              slot: "AM",
+              on: o.amOn,
+              need,
+              bodies,
+            });
+          if (o.pmActive > 0 && o.pmOn < need)
+            report.breachDays.push({
+              date: d,
+              slot: "PM",
+              on: o.pmOn,
+              need,
+              bodies,
+            });
+        }
+        // Surface genuine breaches loudly (these indicate the solver couldn't keep an
+        // achievable floor — treated as hard failures by the restart scorer).
+        for (const b of report.breachDays) {
+          report.warnings.push(
+            `Below floor (${b.on}/${b.need} in camp) ${b.slot} ${b.date}.`
+          );
+        }
+
+        // ACD/CD overlap
+        if (input.hasACD) {
+          const cd = schedules[input.staff[0].id],
+            acd = schedules[input.staff[1].id];
+          for (const d of dates) {
+            if (cd[d] && acd[d]) {
+              if (
+                (cd[d].am === "OFF" && acd[d].am === "OFF") ||
+                (cd[d].pm === "OFF" && acd[d].pm === "OFF")
+              )
+                report.warnings.push(`CD and ACD both off ${d}.`);
+            }
+          }
+        }
+        // ratio + last-3-working
+        for (const st of input.staff) {
+          const s = schedules[st.id];
+          const off = countDaysOff(s),
+            on = countWorkingDays(s),
+            cd = off + on;
+          report.perStaff[st.id] = report.perStaff[st.id] || {};
+          Object.assign(report.perStaff[st.id], {
+            daysOff: off,
+            daysOn: on,
+            contractDays: cd,
+            doPct: cd ? Math.round((off / cd) * 100) : 0,
+          });
+          const maxOff = Math.max(0, cd - Math.ceil(cd * 0.74));
+          if (cd > 0 && off > maxOff)
+            report.warnings.push(
+              `${st.name} exceeds days-off cap (${off}/${cd}, keep \u226574% working).`
+            );
+          for (const pd of protectedOn[st.id]) {
+            if (s[pd] && (s[pd].am === "OFF" || s[pd].pm === "OFF"))
+              report.warnings.push(
+                `${st.name} is off during protected last-3 day ${pd}.`
+              );
+          }
+        }
+      }
+
+      // utils
+      function deepClone(o) {
+        return JSON.parse(JSON.stringify(o));
+      }
+      function maxISO(a, b) {
+        return dayDiff(a, b) >= 0 ? b : a;
+      } // later of the two dates
+      function minISO(a, b) {
+        return dayDiff(a, b) >= 0 ? a : b;
+      } // earlier of the two dates
+      function mulberry32(a) {
+        return function () {
+          a |= 0;
+          a = (a + 0x6d2b79f5) | 0;
+          let t = Math.imul(a ^ (a >>> 15), 1 | a);
+          t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+
+      /* Multi-restart wrapper: run solve several times, keep the best by a weighted
    penalty that mirrors the priority order:
      floor breach        = 1000 (hardest; should never happen by construction)
      missed required day  = 100
      ratio/cap warning    = 10
      missed preferred     = 1                                              */
-function scoreResult(res,input){
-  let s=0;
-  for(const w of res.report.warnings){
-    if(w.includes('floor')) s+=1000;
-    else if(w.includes('required')) s+=100;
-    else s+=10;
-  }
-  // reward hitting targets + honoring preferred
-  for(const st of input.staff){
-    const ps=res.report.perStaff[st.id]||{};
-    s -= (ps.preferredMet||0)*1;
-    const tgt = st._targetOff||0, off=ps.daysOff||0;
-    s += Math.abs(off - tgt)*0.5; // closeness to 25% target
-  }
-  return s;
-}
-function solveBest(input, restarts=24){
-  let best=null;
-  for(let r=0;r<restarts;r++){
-    const res=solve(input, (Date.now()+r*2654435761)>>>0);
-    res._score=scoreResult(res,input);
-    if(!best || res._score<best._score){ best=res; }
-    if(best._score<=0 && best.report.warnings.length===0) break;
-  }
-  return best;
-}
+      function scoreResult(res, input) {
+        let s = 0;
+        for (const w of res.report.warnings) {
+          if (w.includes("floor")) s += 1000;
+          else if (w.includes("required")) s += 100;
+          else s += 10;
+        }
+        // reward hitting targets + honoring preferred
+        for (const st of input.staff) {
+          const ps = res.report.perStaff[st.id] || {};
+          s -= (ps.preferredMet || 0) * 1;
+          const tgt = st._targetOff || 0,
+            off = ps.daysOff || 0;
+          s += Math.abs(off - tgt) * 0.5; // closeness to 25% target
+        }
+        return s;
+      }
+      function solveBest(input, restarts = 24) {
+        let best = null;
+        for (let r = 0; r < restarts; r++) {
+          const res = solve(input, (Date.now() + r * 2654435761) >>> 0);
+          res._score = scoreResult(res, input);
+          if (!best || res._score < best._score) {
+            best = res;
+          }
+          if (best._score <= 0 && best.report.warnings.length === 0) break;
+        }
+        return best;
+      }
 
+      /* ====================== UI LAYER ====================== */
+      /* The season month/day span lives in the engine as SEASON_MONTH_DAY (the single
+   source of truth). The UI derives concrete dates from the year input so the
+   date-pickers, defaults, and validation all stay in lockstep with the engine. */
+      function selectedYear() {
+        const v = parseInt(document.getElementById("seasonYear").value, 10);
+        return v >= 2000 && v <= 2100 ? v : new Date().getFullYear();
+      }
+      function seasonStartUI() {
+        return selectedYear() + "-" + SEASON_MONTH_DAY.start;
+      }
+      function seasonEndUI() {
+        return selectedYear() + "-" + SEASON_MONTH_DAY.end;
+      }
+      // Typical arrival conventions: leadership (CD/ACD) ~May 20, PCs ~May 27.
+      function defaultStartFor(idx) {
+        const y = selectedYear();
+        return idx <= 1 ? y + "-05-20" : y + "-05-27";
+      }
+      function scatterValue() {
+        const sel = document.getElementById("scatterDay");
+        return sel && sel.value ? sel.value : selectedYear() + "-06-06";
+      }
+      let staffRows = [];
+      let lastResult = null;
+      let uid = 0;
 
-/* ====================== UI LAYER ====================== */
-const SEASON_START_UI='2021-06-06', SEASON_END_UI='2021-08-20';
-let staffRows=[]; let lastResult=null; let uid=0;
+      function el(tag, cls, html) {
+        const e = document.createElement(tag);
+        if (cls) e.className = cls;
+        if (html != null) e.innerHTML = html;
+        return e;
+      }
+      function hasACD() {
+        return (
+          document.querySelector("input[name=hasacd]:checked").value === "yes"
+        );
+      }
 
-function el(tag,cls,html){const e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;}
-function hasACD(){return document.querySelector('input[name=hasacd]:checked').value==='yes';}
+      function roleFor(i) {
+        if (i === 0) return "CD";
+        if (i === 1 && hasACD()) return "ACD";
+        return "PC";
+      }
 
-function roleFor(i){ if(i===0)return 'CD'; if(i===1&&hasACD())return 'ACD'; return 'PC'; }
+      function makeStaffRow(initial) {
+        const id = "st" + uid++;
+        const data = {
+          id,
+          name: (initial && initial.name) || "",
+          is21: initial ? initial.is21 : true,
+          start:
+            (initial && initial.start) || defaultStartFor(staffRows.length),
+          end: (initial && initial.end) || seasonEndUI(),
+          required: initial && initial.required ? [...initial.required] : [],
+          preferred: initial && initial.preferred ? [...initial.preferred] : [],
+          locked: false,
+        };
+        staffRows.push(data);
+        return data;
+      }
 
-function makeStaffRow(initial){
-  const id='st'+(uid++);
-  const data={id,name:initial&&initial.name||'',is21:initial?initial.is21:true,
-    start:initial&&initial.start||SEASON_START_UI,end:initial&&initial.end||SEASON_END_UI,
-    required:initial&&initial.required?[...initial.required]:[],
-    preferred:initial&&initial.preferred?[...initial.preferred]:[],
-    locked:false};
-  staffRows.push(data);
-  return data;
-}
+      function renderStaff() {
+        const list = document.getElementById("staffList");
+        list.innerHTML = "";
+        staffRows.forEach((d, i) => {
+          const role = roleFor(i);
+          const wrap = el("div", "staff" + (d.locked ? " locked" : ""));
+          const top = el("div", "top");
+          top.appendChild(el("div", "idx", i + 1 + "."));
+          const nmw = el("div", "nm");
+          const roleLabel =
+            role === "CD"
+              ? "Camp Director"
+              : role === "ACD"
+              ? "ACD"
+              : "Staff member name";
+          nmw.appendChild(el("label", "fld", roleLabel));
+          const nm = el("input");
+          nm.type = "text";
+          nm.placeholder =
+            role === "CD"
+              ? "Director name"
+              : role === "ACD"
+              ? "ACD name"
+              : "Name";
+          nm.value = d.name;
+          nm.oninput = (e) => (d.name = e.target.value);
+          nmw.appendChild(nm);
+          top.appendChild(nmw);
+          if (role !== "PC") {
+            const t = el(
+              "span",
+              "role-tag" + (role === "ACD" ? " acd" : ""),
+              role
+            );
+            top.appendChild(t);
+          }
+          // is21
+          const c21 = el("label", "chk");
+          const cb = el("input");
+          cb.type = "checkbox";
+          cb.checked = d.is21;
+          if (role !== "PC") {
+            cb.checked = true;
+            cb.disabled = true;
+            d.is21 = true;
+          }
+          cb.onchange = (e) => (d.is21 = e.target.checked);
+          c21.appendChild(cb);
+          c21.appendChild(document.createTextNode("21 or older"));
+          top.appendChild(c21);
+          // lock
+          const cl = el("label", "chk");
+          const lk = el("input");
+          lk.type = "checkbox";
+          lk.checked = d.locked;
+          lk.onchange = (e) => {
+            d.locked = e.target.checked;
+            wrap.classList.toggle("locked", d.locked);
+          };
+          cl.appendChild(lk);
+          cl.appendChild(document.createTextNode("Lock"));
+          top.appendChild(cl);
+          // delete (not for CD)
+          if (i !== 0) {
+            const x = el("button", "x", "&times;");
+            x.title = "Remove";
+            x.onclick = () => {
+              staffRows = staffRows.filter((s) => s.id !== d.id);
+              renderStaff();
+            };
+            top.appendChild(x);
+          }
+          wrap.appendChild(top);
+          // dates
+          const dr = el("div", "dates-row");
+          const sd = el("div");
+          sd.appendChild(el("label", "fld", "Start date"));
+          const si = el("input");
+          si.type = "date";
+          si.value = d.start;
+          si.min = seasonStartUI();
+          si.oninput = (e) => (d.start = e.target.value);
+          sd.appendChild(si);
+          dr.appendChild(sd);
+          const ed = el("div");
+          ed.appendChild(el("label", "fld", "Last working day"));
+          const ei = el("input");
+          ei.type = "date";
+          ei.value = d.end;
+          ei.max = seasonEndUI();
+          ei.oninput = (e) => (d.end = e.target.value);
+          ed.appendChild(ei);
+          dr.appendChild(ed);
+          const cdv = el("div");
+          cdv.appendChild(el("label", "fld", "Contract days"));
+          const cdspan = el(
+            "div",
+            "",
+            contractDays(
+              maxISO(d.start, SEASON_START),
+              minISO(d.end, SEASON_END)
+            )
+          );
+          cdspan.style.cssText =
+            "font-size:22px;font-weight:800;color:var(--pine);padding-top:4px;font-family:ui-sans-serif,system-ui,sans-serif";
+          si.addEventListener(
+            "input",
+            () =>
+              (cdspan.textContent = contractDays(
+                maxISO(d.start, SEASON_START),
+                minISO(d.end, SEASON_END)
+              ))
+          );
+          ei.addEventListener(
+            "input",
+            () =>
+              (cdspan.textContent = contractDays(
+                maxISO(d.start, SEASON_START),
+                minISO(d.end, SEASON_END)
+              ))
+          );
+          cdv.appendChild(cdspan);
+          dr.appendChild(cdv);
+          wrap.appendChild(dr);
+          // off blocks
+          const ob = el("div", "off-block");
+          ob.appendChild(
+            makeOffCol(d, "required", "Required days off", "max 3", 3)
+          );
+          ob.appendChild(
+            makeOffCol(d, "preferred", "Preferred days off", "any number", 999)
+          );
+          wrap.appendChild(ob);
+          list.appendChild(wrap);
+        });
+      }
 
-function renderStaff(){
-  const list=document.getElementById('staffList'); list.innerHTML='';
-  staffRows.forEach((d,i)=>{
-    const role=roleFor(i);
-    const wrap=el('div','staff'+(d.locked?' locked':''));
-    const top=el('div','top');
-    top.appendChild(el('div','idx',(i+1)+'.'));
-    const nmw=el('div','nm');
-    const roleLabel = role==='CD'?'Camp Director':role==='ACD'?'ACD':'Staff member name';
-    nmw.appendChild(el('label','fld',roleLabel));
-    const nm=el('input');nm.type='text';nm.placeholder=role==='CD'?'Director name':role==='ACD'?'ACD name':'Name';
-    nm.value=d.name;nm.oninput=e=>d.name=e.target.value;
-    nmw.appendChild(nm); top.appendChild(nmw);
-    if(role!=='PC'){const t=el('span','role-tag'+(role==='ACD'?' acd':''),role);top.appendChild(t);}
-    // is21
-    const c21=el('label','chk');
-    const cb=el('input');cb.type='checkbox';cb.checked=d.is21;
-    if(role!=='PC'){cb.checked=true;cb.disabled=true;d.is21=true;}
-    cb.onchange=e=>d.is21=e.target.checked;
-    c21.appendChild(cb);c21.appendChild(document.createTextNode('21 or older'));
-    top.appendChild(c21);
-    // lock
-    const cl=el('label','chk');
-    const lk=el('input');lk.type='checkbox';lk.checked=d.locked;
-    lk.onchange=e=>{d.locked=e.target.checked;wrap.classList.toggle('locked',d.locked);};
-    cl.appendChild(lk);cl.appendChild(document.createTextNode('Lock'));
-    top.appendChild(cl);
-    // delete (not for CD)
-    if(i!==0){const x=el('button','x','&times;');x.title='Remove';x.onclick=()=>{staffRows=staffRows.filter(s=>s.id!==d.id);renderStaff();};top.appendChild(x);}
-    wrap.appendChild(top);
-    // dates
-    const dr=el('div','dates-row');
-    const sd=el('div');sd.appendChild(el('label','fld','Start date'));
-    const si=el('input');si.type='date';si.value=d.start;si.min=SEASON_START_UI;si.oninput=e=>d.start=e.target.value;
-    sd.appendChild(si);dr.appendChild(sd);
-    const ed=el('div');ed.appendChild(el('label','fld','Last working day'));
-    const ei=el('input');ei.type='date';ei.value=d.end;ei.max=SEASON_END_UI;ei.oninput=e=>d.end=e.target.value;
-    ed.appendChild(ei);dr.appendChild(ed);
-    const cdv=el('div');cdv.appendChild(el('label','fld','Contract days'));
-    const cdspan=el('div','',contractDays(maxISO(d.start,SEASON_START),minISO(d.end,SEASON_END)));
-    cdspan.style.cssText='font-size:22px;font-weight:800;color:var(--pine);padding-top:4px;font-family:ui-sans-serif,system-ui,sans-serif';
-    si.addEventListener('input',()=>cdspan.textContent=contractDays(maxISO(d.start,SEASON_START),minISO(d.end,SEASON_END)));
-    ei.addEventListener('input',()=>cdspan.textContent=contractDays(maxISO(d.start,SEASON_START),minISO(d.end,SEASON_END)));
-    cdv.appendChild(cdspan);dr.appendChild(cdv);
-    wrap.appendChild(dr);
-    // off blocks
-    const ob=el('div','off-block');
-    ob.appendChild(makeOffCol(d,'required','Required days off','max 3',3));
-    ob.appendChild(makeOffCol(d,'preferred','Preferred days off','any number',999));
-    wrap.appendChild(ob);
-    list.appendChild(wrap);
-  });
-}
+      function makeOffCol(d, key, title, pillTxt, limit) {
+        const col = el("div", "off-col");
+        const h = el(
+          "h4",
+          null,
+          title +
+            ' <span class="pill' +
+            (key === "preferred" ? " pref" : "") +
+            '">' +
+            pillTxt +
+            "</span>"
+        );
+        col.appendChild(h);
+        const holder = el("div");
+        function redraw() {
+          holder.innerHTML = "";
+          d[key].forEach((val, idx) => {
+            const r = el("div", "daterow");
+            const inp = el("input");
+            inp.type = "date";
+            inp.min = seasonStartUI();
+            inp.max = seasonEndUI();
+            inp.value = val;
+            inp.oninput = (e) => (d[key][idx] = e.target.value);
+            const x = el("button", "x", "&times;");
+            x.onclick = () => {
+              d[key].splice(idx, 1);
+              redraw();
+            };
+            r.appendChild(inp);
+            r.appendChild(x);
+            holder.appendChild(r);
+          });
+          addBtn.classList.toggle("hidden", d[key].length >= limit);
+        }
+        col.appendChild(holder);
+        const addBtn = el("button", "mini", "+ add a day");
+        addBtn.onclick = () => {
+          if (d[key].length < limit) {
+            d[key].push(seasonStartUI());
+            redraw();
+          }
+        };
+        col.appendChild(addBtn);
+        redraw();
+        return col;
+      }
 
-function makeOffCol(d,key,title,pillTxt,limit){
-  const col=el('div','off-col');
-  const h=el('h4',null,title+' <span class="pill'+(key==='preferred'?' pref':'')+'">'+pillTxt+'</span>');
-  col.appendChild(h);
-  const holder=el('div');
-  function redraw(){
-    holder.innerHTML='';
-    d[key].forEach((val,idx)=>{
-      const r=el('div','daterow');
-      const inp=el('input');inp.type='date';inp.min=SEASON_START_UI;inp.max=SEASON_END_UI;inp.value=val;
-      inp.oninput=e=>d[key][idx]=e.target.value;
-      const x=el('button','x','&times;');x.onclick=()=>{d[key].splice(idx,1);redraw();};
-      r.appendChild(inp);r.appendChild(x);holder.appendChild(r);
-    });
-    addBtn.classList.toggle('hidden',d[key].length>=limit);
-  }
-  col.appendChild(holder);
-  const addBtn=el('button','mini','+ add a day');
-  addBtn.onclick=()=>{if(d[key].length<limit){d[key].push(SEASON_START_UI);redraw();}};
-  col.appendChild(addBtn);
-  redraw();
-  return col;
-}
+      // init 4 rows
+      // initialize season year to the current calendar year
+      let _prevYear = new Date().getFullYear();
+      document.getElementById("seasonYear").value = _prevYear;
 
-// init 4 rows
-for(let i=0;i<4;i++) makeStaffRow();
-renderStaff();
-document.getElementById('addStaff').onclick=()=>{makeStaffRow();renderStaff();};
-document.querySelectorAll('input[name=hasacd]').forEach(r=>r.onchange=renderStaff);
+      /* Scatter day options: June 4-7 of the selected year. Rebuilt on year change,
+   preserving the chosen day-of-month where possible. */
+      function populateScatter() {
+        const sel = document.getElementById("scatterDay");
+        const prevDom = sel.value ? sel.value.split("-")[2] : "06";
+        const y = selectedYear();
+        sel.innerHTML = "";
+        ["04", "05", "06", "07"].forEach((dd) => {
+          const iso = y + "-06-" + dd;
+          const o = document.createElement("option");
+          o.value = iso;
+          o.textContent = "June " + +dd + ", " + y;
+          if (dd === prevDom) o.selected = true;
+          sel.appendChild(o);
+        });
+        if (!["04", "05", "06", "07"].includes(prevDom))
+          sel.value = y + "-06-06";
+      }
+      populateScatter();
 
-/* build engine input from UI */
-function buildInput(){
-  return {
-    hasACD:hasACD(), minPct:+document.getElementById('minPct').value,
-    prioritize21:document.getElementById('prioritize21').checked,
-    staff:staffRows.map((d,i)=>({
-      id:d.id,name:d.name.trim()||('Staff '+(i+1)),role:roleFor(i),is21:d.is21,
-      start:d.start,end:d.end,
-      required:d.required.filter(Boolean),preferred:d.preferred.filter(Boolean),
-      locked:d.locked,
-      lockedSchedule: (d.locked && lastResult)? lastResult.schedules[d.id] : null
-    }))
-  };
-}
+      for (let i = 0; i < 4; i++) makeStaffRow();
+      renderStaff();
+      document.getElementById("addStaff").onclick = () => {
+        makeStaffRow();
+        renderStaff();
+      };
+      document
+        .querySelectorAll("input[name=hasacd]")
+        .forEach((r) => (r.onchange = renderStaff));
 
-function run(isRecalc){
-  const note=document.getElementById('calcNote');
-  const btn=isRecalc?document.getElementById('recalcBtn'):document.getElementById('calcBtn');
-  const orig=btn.innerHTML; btn.innerHTML='<span class="spinner"></span>Solving';
-  setTimeout(()=>{
-    try{
-      const input=buildInput();
-      // carry locked schedules; engine seeds them as fixed
-      const res=solveBest(input, 36);
-      lastResult=res; lastResult._input=input;
-      renderOutput(res,input);
-      document.getElementById('output').classList.remove('hidden');
-      document.getElementById('recalcBtn').classList.remove('hidden');
-      note.textContent='Tip: lock the schedules you like, then Recalculate to reshuffle the rest.';
-      document.getElementById('output').scrollIntoView({behavior:'smooth',block:'start'});
-    }catch(err){ note.textContent='Error: '+err.message; console.error(err); }
-    btn.innerHTML=orig;
-  },30);
-}
-document.getElementById('calcBtn').onclick=()=>run(false);
-document.getElementById('recalcBtn').onclick=()=>run(true);
+      /* When the season year changes, shift every staff date that was on the OLD
+   year onto the new year (same month/day). This keeps a manager's entered
+   dates meaningful instead of silently falling outside the new season. */
+      function shiftYear(iso, from, to) {
+        if (!iso) return iso;
+        const [y, m, d] = iso.split("-");
+        return +y === from ? to + "-" + m + "-" + d : iso;
+      }
+      document.getElementById("seasonYear").addEventListener("change", () => {
+        const ny = selectedYear();
+        if (ny === _prevYear) {
+          return;
+        }
+        staffRows.forEach((s) => {
+          s.start = shiftYear(s.start, _prevYear, ny);
+          s.end = shiftYear(s.end, _prevYear, ny);
+          s.required = s.required.map((x) => shiftYear(x, _prevYear, ny));
+          s.preferred = s.preferred.map((x) => shiftYear(x, _prevYear, ny));
+        });
+        _prevYear = ny;
+        document.getElementById("seasonYear").value = ny; // normalize any out-of-range entry
+        populateScatter();
+        renderStaff();
+      });
 
-/* ---- output rendering ---- */
-function renderOutput(res,input){
-  const sb=document.getElementById('statusBox');
-  if(res.report.warnings.length===0){
-    sb.className=''; sb.innerHTML='<div class="okbox">&#10003; All hard constraints satisfied &mdash; in-camp floor of '+res.floorCount+' staff held in every half-day, required days off honored, last 3 working days protected'+(input.hasACD?', CD &amp; ACD never off together':'')+'.</div>';
-  } else {
-    const ul=res.report.warnings.map(w=>'<li>'+w+'</li>').join('');
-    sb.innerHTML='<div class="warnbox"><b>'+res.report.warnings.length+' note(s)</b> &mdash; the floor was kept absolute; these are softer goals that couldn&rsquo;t be fully met (often unavoidable at a high in-camp %):<ul>'+ul+'</ul></div>';
-  }
-  // stat cards
-  const sc=document.getElementById('statCards'); sc.innerHTML='';
-  input.staff.forEach(st=>{
-    const ps=res.report.perStaff[st.id]||{};
-    const card=el('div','stat');
-    card.innerHTML='<div class="n">'+(ps.doPct||0)+'%</div><div class="l">'+st.name+' &middot; '+(ps.daysOff||0)+' off / '+(ps.contractDays||0)+' days</div>';
-    sc.appendChild(card);
-  });
-  renderCalendar(res,input);
-}
+      /* build engine input from UI */
+      function buildInput() {
+        return {
+          year: selectedYear(),
+          scatter: scatterValue(),
+          hasACD: hasACD(),
+          minPct: +document.getElementById("minPct").value,
+          prioritize21: document.getElementById("prioritize21").checked,
+          staff: staffRows.map((d, i) => ({
+            id: d.id,
+            name: d.name.trim() || "Staff " + (i + 1),
+            role: roleFor(i),
+            is21: d.is21,
+            start: d.start,
+            end: d.end,
+            required: d.required.filter(Boolean),
+            preferred: d.preferred.filter(Boolean),
+            locked: d.locked,
+            lockedSchedule:
+              d.locked && lastResult ? lastResult.schedules[d.id] : null,
+          })),
+        };
+      }
 
-function stateClass(s){return s.toLowerCase();}
-function renderCalendar(res,input){
-  const t=document.getElementById('calTable'); t.innerHTML='';
-  const thead=el('thead'); const hr=el('tr');
-  hr.appendChild(el('th','daycol','Day'));
-  input.staff.forEach(st=>hr.appendChild(el('th',null,st.name)));
-  thead.appendChild(hr); t.appendChild(thead);
-  const tb=el('tbody');
-  res.dates.forEach(d=>{
-    const wd=weekdayShort(d);
-    const tr=el('tr'); if(wd==='SUN') tr.className='weekstart';
-    const lab=el('td','daylab'); lab.innerHTML='<div style="font-size:11px;color:#8a7f63">'+wd+'</div>'+monthDayLabel(d);
-    tr.appendChild(lab);
-    input.staff.forEach(st=>{
-      const sl=res.schedules[st.id][d]||{am:'CLEAR',pm:'CLEAR'};
-      const td=el('td');
-      td.innerHTML='<div class="slotcell"><div class="half '+stateClass(sl.am)+'">'+labelFor(sl.am)+'</div><div class="half '+stateClass(sl.pm)+'">'+labelFor(sl.pm)+'</div></div>';
-      tr.appendChild(td);
-    });
-    tb.appendChild(tr);
-  });
-  t.appendChild(tb);
-  // summary row: in-camp count per day (PM)
-  const tf=el('tbody');
-  const sr=el('tr','sumrow');
-  sr.appendChild(el('td','daylab','&#9660; in camp (am/pm)'));
-  // we already show per-cell; add nothing per staff col, span note instead
-  input.staff.forEach(()=>sr.appendChild(el('td','','')));
-  // Instead, append a compact footer row showing min headcount
-  let minAm=999,minPm=999;
-  res.dates.forEach(d=>{const o=res.occupancy[d];if(o.amActive){minAm=Math.min(minAm,o.amOn);}if(o.pmActive){minPm=Math.min(minPm,o.pmOn);}});
-}
-function labelFor(s){return s==='ON'?'on':s==='OFF'?'OFF':s==='OTHER'?'oth':'';}
+      function run(isRecalc) {
+        const note = document.getElementById("calcNote");
+        const btn = isRecalc
+          ? document.getElementById("recalcBtn")
+          : document.getElementById("calcBtn");
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner"></span>Solving';
+        setTimeout(() => {
+          try {
+            const input = buildInput();
+            // carry locked schedules; engine seeds them as fixed
+            const res = solveBest(input, 36);
+            lastResult = res;
+            lastResult._input = input;
+            renderOutput(res, input);
+            document.getElementById("output").classList.remove("hidden");
+            document.getElementById("recalcBtn").classList.remove("hidden");
+            note.textContent =
+              "Tip: lock the schedules you like, then Recalculate to reshuffle the rest.";
+            document
+              .getElementById("output")
+              .scrollIntoView({ behavior: "smooth", block: "start" });
+          } catch (err) {
+            note.textContent = "Error: " + err.message;
+            console.error(err);
+          }
+          btn.innerHTML = orig;
+        }, 30);
+      }
+      document.getElementById("calcBtn").onclick = () => run(false);
+      document.getElementById("recalcBtn").onclick = () => run(true);
 
-/* ---- export ---- */
-function buildGrid(res,input){
-  const head=['Day','Date',...input.staff.map(s=>s.name)];
-  const rows=[];
-  // header info block (mirrors the example sheet)
-  rows.push(['Contract Days','',...input.staff.map(s=>(res.report.perStaff[s.id]||{}).contractDays||0)]);
-  rows.push(['Days Off','',...input.staff.map(s=>(res.report.perStaff[s.id]||{}).daysOff||0)]);
-  rows.push(['DO Percent','',...input.staff.map(s=>((res.report.perStaff[s.id]||{}).doPct||0)+'%')]);
-  rows.push([]);
-  rows.push(head);
-  res.dates.forEach(d=>{
-    const wd=weekdayShort(d), dl=monthDayLabel(d);
-    // AM row then PM row, like the example (two lines per day)
-    rows.push([wd,dl,...input.staff.map(s=>cellTxt((res.schedules[s.id][d]||{}).am))]);
-    rows.push(['',dl,...input.staff.map(s=>cellTxt((res.schedules[s.id][d]||{}).pm))]);
-  });
-  return rows;
-}
-function cellTxt(s){return s==='ON'?'On':s==='OFF'?'Off':s==='OTHER'?'Other':'Clear';}
+      /* ---- output rendering ---- */
+      function renderOutput(res, input) {
+        const sb = document.getElementById("statusBox");
+        const rep = res.report;
+        const W = rep.warnings;
 
-function download(){
-  const res=lastResult,input=res._input;
-  const rows=buildGrid(res,input);
-  const ws=XLSX.utils.aoa_to_sheet(rows);
-  // color fills
-  const fill={On:'6F9C3F',Off:'B23A2E',Other:'E0A73A',Clear:'E7E0CF'};
-  const range=XLSX.utils.decode_range(ws['!ref']);
-  for(let R=range.s.r;R<=range.e.r;R++){
-    for(let C=2;C<=range.e.c;C++){
-      const addr=XLSX.utils.encode_cell({r:R,c:C});const cell=ws[addr];
-      if(cell&&fill[cell.v]){cell.s={fill:{patternType:'solid',fgColor:{rgb:fill[cell.v]}},
-        font:{color:{rgb:cell.v==='Other'||cell.v==='Clear'?'5B3D12':'FFFFFF'},bold:true},
-        alignment:{horizontal:'center'}};}
-    }
-  }
-  ws['!cols']=[{wch:7},{wch:9},...input.staff.map(()=>({wch:9}))];
-  const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,(document.getElementById('campName').value||'Camp').slice(0,28)||'Schedule');
-  XLSX.writeFile(wb,(document.getElementById('campName').value||'camp')+'_dayoff_schedule.xlsx');
-}
-document.getElementById('dlBtn').onclick=download;
-document.getElementById('dlCsv').onclick=()=>{
-  const res=lastResult,input=res._input;const rows=buildGrid(res,input);
-  const csv=rows.map(r=>r.map(c=>('"'+String(c==null?'':c).replace(/"/g,'""')+'"')).join(',')).join('\n');
-  const blob=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);a.download=(document.getElementById('campName').value||'camp')+'_dayoff_schedule.csv';a.click();
-};
-</script>
-</body></html>
+        // Categorize the messages so the camp manager sees plain language, not raw logs.
+        const breaches = W.filter((w) => w.startsWith("Below floor"));
+        const requiredMisses = W.filter((w) => w.includes("required day off"));
+        const acdOverlap = W.filter((w) => w.includes("CD and ACD"));
+        const capNotes = W.filter((w) => w.includes("days-off cap"));
+        const protMisses = W.filter((w) => w.includes("protected last-3"));
+        const infeas = rep.infeasibleDays || [];
+
+        let html = "";
+
+        // 1) GREEN success banner if every hard rule held.
+        const hardOk =
+          breaches.length === 0 &&
+          acdOverlap.length === 0 &&
+          protMisses.length === 0;
+        if (hardOk) {
+          html +=
+            '<div class="okbox">&#10003; <b>All hard rules held.</b> The in-camp floor (' +
+            input.minPct +
+            "% of whoever&rsquo;s under contract) was met in every half-day, " +
+            "required days off were honored, and every staffer&rsquo;s last 3 days are working" +
+            (input.hasACD
+              ? ", with the CD and ACD never off at the same time"
+              : "") +
+            ".</div>";
+        } else {
+          // genuine hard-rule failures (these should be rare; shown loudly)
+          const items = [...breaches, ...acdOverlap, ...protMisses]
+            .map((w) => "<li>" + w + "</li>")
+            .join("");
+          html +=
+            '<div class="warnbox"><b>&#9888; ' +
+            (breaches.length + acdOverlap.length + protMisses.length) +
+            " hard-rule issue(s).</b> These shouldn&rsquo;t normally happen &mdash; if you see them, " +
+            "the inputs may be over-constrained:<ul>" +
+            items +
+            "</ul></div>";
+        }
+
+        // 2) INFEASIBLE DAYS — the "add a temp / extend a contract" advice you asked for.
+        //    Also catch the practical case: days where the floor pins everyone in camp
+        //    (floor == bodies), which is why required/preferred days there can't be granted.
+        const pinnedDays = res.dates.filter((d) => {
+          const b = res.underContract[d],
+            f = res.floorByDate[d];
+          return b > 0 && f >= b; // floor needs everyone -> no days off possible that day
+        });
+        if (infeas.length || requiredMisses.length) {
+          let advice =
+            '<div class="warnbox"><b>&#9873; A few days are over-tight.</b> ';
+          if (requiredMisses.length) {
+            advice +=
+              "Some <b>required days off</b> couldn&rsquo;t be granted because doing so would drop camp below your " +
+              input.minPct +
+              "% floor:<ul>" +
+              requiredMisses
+                .map((w) => {
+                  // strip the trailing parenthetical for cleaner reading
+                  return (
+                    "<li>" +
+                    w.replace(" (would breach in-camp floor).", ".") +
+                    "</li>"
+                  );
+                })
+                .join("") +
+              "</ul>";
+          }
+          if (infeas.length) {
+            advice +=
+              '<p style="margin:8px 0 0">On these days there simply aren&rsquo;t enough staff under contract to reach the floor even with everyone in camp:</p><ul>' +
+              infeas
+                .map(
+                  (x) =>
+                    "<li>" +
+                    monthDayLabel(x.date) +
+                    ": " +
+                    x.bodies +
+                    " under contract, floor wants " +
+                    x.need +
+                    "</li>"
+                )
+                .join("") +
+              "</ul>";
+          }
+          advice +=
+            '<p style="margin:10px 0 0"><b>What you can do:</b> add a temporary staff member with a start date covering these days, ' +
+            "or extend an existing contract. The floor scales to whoever&rsquo;s attached to camp, so even one more body raises the headcount you can reach.</p></div>";
+          html += advice;
+        } else if (pinnedDays.length && hardOk) {
+          // Gentle note: late-season days where the floor requires everyone present.
+          const first = pinnedDays[0],
+            last = pinnedDays[pinnedDays.length - 1];
+          html +=
+            '<div class="okbox" style="background:#f6f1e2;border-color:#cabfa3;color:#5b5340">' +
+            "&#8505; As the season winds down (around " +
+            monthDayLabel(first) +
+            "&ndash;" +
+            monthDayLabel(last) +
+            "), " +
+            "so few staff remain under contract that the " +
+            input.minPct +
+            "% floor needs everyone present &mdash; " +
+            "so no days off are possible on those days. That&rsquo;s expected; add a temp if you need slack there.</div>";
+        }
+
+        sb.innerHTML = html;
+
+        // stat cards
+        const sc = document.getElementById("statCards");
+        sc.innerHTML = "";
+        input.staff.forEach((st) => {
+          const ps = rep.perStaff[st.id] || {};
+          const card = el("div", "stat");
+          card.innerHTML =
+            '<div class="n">' +
+            (ps.doPct || 0) +
+            '%</div><div class="l">' +
+            st.name +
+            " &middot; " +
+            (ps.daysOff || 0) +
+            " off / " +
+            (ps.contractDays || 0) +
+            " days</div>";
+          sc.appendChild(card);
+        });
+        renderCalendar(res, input);
+      }
+
+      function stateClass(s) {
+        return s.toLowerCase();
+      }
+      function renderCalendar(res, input) {
+        const t = document.getElementById("calTable");
+        t.innerHTML = "";
+        const thead = el("thead");
+        const hr = el("tr");
+        hr.appendChild(el("th", "daycol", "Day"));
+        input.staff.forEach((st) => hr.appendChild(el("th", null, st.name)));
+        thead.appendChild(hr);
+        t.appendChild(thead);
+        const tb = el("tbody");
+        res.dates.forEach((d) => {
+          const wd = weekdayShort(d);
+          const tr = el("tr");
+          if (wd === "SUN") tr.className = "weekstart";
+          const isScatter = d === res.scatter;
+          const lab = el("td", "daylab");
+          lab.innerHTML =
+            '<div style="font-size:11px;color:#8a7f63">' +
+            wd +
+            "</div>" +
+            monthDayLabel(d) +
+            (isScatter
+              ? '<div style="font-size:10px;font-weight:800;color:var(--clay);letter-spacing:.05em">\u25B6 SCATTER</div>'
+              : "");
+          if (isScatter) {
+            lab.style.boxShadow = "inset 4px 0 0 var(--clay)";
+          }
+          tr.appendChild(lab);
+          input.staff.forEach((st) => {
+            const sl = res.schedules[st.id][d] || { am: "CLEAR", pm: "CLEAR" };
+            const td = el("td");
+            if (isScatter) td.style.borderTop = "2px solid var(--clay)";
+            td.innerHTML =
+              '<div class="slotcell"><div class="half ' +
+              stateClass(sl.am) +
+              '">' +
+              labelFor(sl.am) +
+              '</div><div class="half ' +
+              stateClass(sl.pm) +
+              '">' +
+              labelFor(sl.pm) +
+              "</div></div>";
+            tr.appendChild(td);
+          });
+          tb.appendChild(tr);
+        });
+        t.appendChild(tb);
+        // summary row: in-camp count per day (PM)
+        const tf = el("tbody");
+        const sr = el("tr", "sumrow");
+        sr.appendChild(el("td", "daylab", "&#9660; in camp (am/pm)"));
+        // we already show per-cell; add nothing per staff col, span note instead
+        input.staff.forEach(() => sr.appendChild(el("td", "", "")));
+        // Instead, append a compact footer row showing min headcount
+        let minAm = 999,
+          minPm = 999;
+        res.dates.forEach((d) => {
+          const o = res.occupancy[d];
+          if (o.amActive) {
+            minAm = Math.min(minAm, o.amOn);
+          }
+          if (o.pmActive) {
+            minPm = Math.min(minPm, o.pmOn);
+          }
+        });
+      }
+      function labelFor(s) {
+        return s === "ON"
+          ? "on"
+          : s === "OFF"
+          ? "OFF"
+          : s === "OTHER"
+          ? "oth"
+          : "";
+      }
+
+      /* ---- export ---- */
+      function buildGrid(res, input) {
+        const head = ["Day", "Date", ...input.staff.map((s) => s.name)];
+        const rows = [];
+        // header info block (mirrors the example sheet)
+        rows.push([
+          "Contract Days",
+          "",
+          ...input.staff.map(
+            (s) => (res.report.perStaff[s.id] || {}).contractDays || 0
+          ),
+        ]);
+        rows.push([
+          "Days Off",
+          "",
+          ...input.staff.map(
+            (s) => (res.report.perStaff[s.id] || {}).daysOff || 0
+          ),
+        ]);
+        rows.push([
+          "DO Percent",
+          "",
+          ...input.staff.map(
+            (s) => ((res.report.perStaff[s.id] || {}).doPct || 0) + "%"
+          ),
+        ]);
+        rows.push([]);
+        rows.push(head);
+        res.dates.forEach((d) => {
+          const wd = weekdayShort(d),
+            dl = monthDayLabel(d);
+          // AM row then PM row, like the example (two lines per day)
+          rows.push([
+            wd,
+            dl,
+            ...input.staff.map((s) =>
+              cellTxt((res.schedules[s.id][d] || {}).am)
+            ),
+          ]);
+          rows.push([
+            "",
+            dl,
+            ...input.staff.map((s) =>
+              cellTxt((res.schedules[s.id][d] || {}).pm)
+            ),
+          ]);
+        });
+        return rows;
+      }
+      function cellTxt(s) {
+        return s === "ON"
+          ? "On"
+          : s === "OFF"
+          ? "Off"
+          : s === "OTHER"
+          ? "Other"
+          : "Clear";
+      }
+
+      function download() {
+        const res = lastResult,
+          input = res._input;
+        const rows = buildGrid(res, input);
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        // color fills
+        const fill = {
+          On: "6F9C3F",
+          Off: "B23A2E",
+          Other: "E0A73A",
+          Clear: "E7E0CF",
+        };
+        const range = XLSX.utils.decode_range(ws["!ref"]);
+        for (let R = range.s.r; R <= range.e.r; R++) {
+          for (let C = 2; C <= range.e.c; C++) {
+            const addr = XLSX.utils.encode_cell({ r: R, c: C });
+            const cell = ws[addr];
+            if (cell && fill[cell.v]) {
+              cell.s = {
+                fill: { patternType: "solid", fgColor: { rgb: fill[cell.v] } },
+                font: {
+                  color: {
+                    rgb:
+                      cell.v === "Other" || cell.v === "Clear"
+                        ? "5B3D12"
+                        : "FFFFFF",
+                  },
+                  bold: true,
+                },
+                alignment: { horizontal: "center" },
+              };
+            }
+          }
+        }
+        ws["!cols"] = [
+          { wch: 7 },
+          { wch: 9 },
+          ...input.staff.map(() => ({ wch: 9 })),
+        ];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(
+          wb,
+          ws,
+          (document.getElementById("campName").value || "Camp").slice(0, 28) ||
+            "Schedule"
+        );
+        XLSX.writeFile(
+          wb,
+          (document.getElementById("campName").value || "camp") +
+            "_dayoff_schedule.xlsx"
+        );
+      }
+      document.getElementById("dlBtn").onclick = download;
+      document.getElementById("dlCsv").onclick = () => {
+        const res = lastResult,
+          input = res._input;
+        const rows = buildGrid(res, input);
+        const csv = rows
+          .map((r) =>
+            r
+              .map(
+                (c) =>
+                  '"' + String(c == null ? "" : c).replace(/"/g, '""') + '"'
+              )
+              .join(",")
+          )
+          .join("\n");
+        const blob = new Blob([csv], { type: "text/csv" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download =
+          (document.getElementById("campName").value || "camp") +
+          "_dayoff_schedule.csv";
+        a.click();
+      };
+    </script>
+  </body>
+</html>
